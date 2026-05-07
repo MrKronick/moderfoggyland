@@ -413,6 +413,25 @@
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            // Проверка длины полей (лимиты)
+const limits = {
+    real_name: 15,
+    minecraft_nick: 28,
+    telegram: 30,
+    experience: 50,
+    motivation: 100,
+    verification_code: 9
+};
+
+for (const [fieldName, maxLen] of Object.entries(limits)) {
+    const field = form.querySelector(`[name="${fieldName}"]`);
+    if (field && field.value.length > maxLen) {
+        const label = field.closest('.form-group')?.querySelector('label')?.textContent || fieldName;
+        alert(`⚠️ Поле "${label.replace(/[^a-zA-Zа-яА-ЯёЁ\s]/g, '').trim()}" превышает максимум в ${maxLen} символов!`);
+        field.focus();
+        return; // прерываем отправку
+    }
+}
 
             // Проверка возраста
             const ageValue = ageSelect.value;
