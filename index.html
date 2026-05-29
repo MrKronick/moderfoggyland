@@ -1,1219 +1,342 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>🌫️ FoggyLand | Тест на знание правил</title>
-    <style>
-        :root {
-            --bg-deep: #1a2e0f;
-            --bg-mid: #2d3e1f;
-            --green-dark: #3b6e2b;
-            --green-mid: #5b8238;
-            --green-light: #7fa052;
-            --gold: #c2a44a;
-            --card-bg: rgba(255, 255, 245, 0.92);
-            --text-dark: #1e2a1f;
-            --accent-red: #a52a1a;
-            --shadow-lg: 0 30px 55px -15px rgba(0, 0, 0, 0.35);
-            --radius-xl: 2.5rem;
-            --radius-lg: 1.4rem;
-            --radius-md: 1rem;
-            --transition-smooth: 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: #1a2e0f;
-            min-height: 100vh;
-            color: #1e2a1f;
-            position: relative;
-            overflow-x: hidden;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* ── Живой туманный фон ── */
-        .fog-background {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            background: linear-gradient(170deg, #1a2e0f 0%, #2d3e1f 15%, #3a5a2a 30%, #58803a 50%, #7fa052 65%, #9bb86a 80%, #a7b87e 100%);
-            overflow: hidden;
-        }
-        .fog-cloud {
-            position: absolute;
-            background: radial-gradient(ellipse at center, rgba(255, 255, 240, 0.28) 0%, rgba(220, 230, 180, 0.07) 70%, transparent 90%);
-            border-radius: 50%;
-            filter: blur(55px);
-            animation: fogFloat 30s infinite alternate ease-in-out;
-            pointer-events: none;
-        }
-        .fog-cloud:nth-child(1) {
-            width: 750px;
-            height: 320px;
-            top: 2%;
-            left: -8%;
-            animation-duration: 34s;
-        }
-        .fog-cloud:nth-child(2) {
-            width: 620px;
-            height: 380px;
-            bottom: 8%;
-            right: -4%;
-            animation-duration: 40s;
-            animation-delay: -6s;
-        }
-        .fog-cloud:nth-child(3) {
-            width: 580px;
-            height: 300px;
-            top: 35%;
-            left: 28%;
-            animation-duration: 44s;
-            animation-delay: -14s;
-        }
-        .fog-cloud:nth-child(4) {
-            width: 520px;
-            height: 270px;
-            bottom: 22%;
-            left: 48%;
-            animation-duration: 36s;
-            animation-delay: -22s;
-        }
-        .fog-cloud:nth-child(5) {
-            width: 680px;
-            height: 340px;
-            top: 55%;
-            right: 18%;
-            animation-duration: 42s;
-            animation-delay: -10s;
-        }
-        .fog-cloud:nth-child(6) {
-            width: 400px;
-            height: 200px;
-            top: 70%;
-            left: 5%;
-            animation-duration: 38s;
-            animation-delay: -18s;
-            opacity: 0.6;
-        }
-        @keyframes fogFloat {
-            0% {
-                transform: translate(0, 0) scale(1);
-                opacity: 0.4;
-            }
-            30% {
-                transform: translate(3%, -2%) scale(1.06);
-                opacity: 0.7;
-            }
-            60% {
-                transform: translate(-2%, 1.5%) scale(0.96);
-                opacity: 0.5;
-            }
-            100% {
-                transform: translate(2.5%, 0.8%) scale(1.08);
-                opacity: 0.65;
-            }
-        }
-
-        .firefly {
-            position: absolute;
-            width: 6px;
-            height: 6px;
-            background: #f9f3b0;
-            border-radius: 50%;
-            box-shadow: 0 0 16px 7px rgba(250, 240, 120, 0.7);
-            animation: fireflyDrift 22s infinite ease-in-out;
-            pointer-events: none;
-        }
-        .firefly:nth-child(7) {
-            top: 12%;
-            left: 18%;
-            animation-duration: 24s;
-        }
-        .firefly:nth-child(8) {
-            top: 72%;
-            left: 68%;
-            animation-duration: 27s;
-            animation-delay: -5s;
-        }
-        .firefly:nth-child(9) {
-            top: 42%;
-            left: 78%;
-            animation-duration: 25s;
-            animation-delay: -10s;
-        }
-        .firefly:nth-child(10) {
-            top: 82%;
-            left: 12%;
-            animation-duration: 30s;
-            animation-delay: -15s;
-        }
-        .firefly:nth-child(11) {
-            top: 22%;
-            left: 52%;
-            animation-duration: 22s;
-            animation-delay: -19s;
-        }
-        .firefly:nth-child(12) {
-            top: 55%;
-            left: 35%;
-            animation-duration: 26s;
-            animation-delay: -7s;
-        }
-        @keyframes fireflyDrift {
-            0% {
-                transform: translate(0, 0) scale(0.5);
-                opacity: 0.1;
-            }
-            20% {
-                transform: translate(28px, -35px) scale(1.2);
-                opacity: 0.9;
-            }
-            40% {
-                transform: translate(-18px, -65px) scale(0.7);
-                opacity: 0.35;
-            }
-            60% {
-                transform: translate(32px, -25px) scale(1.05);
-                opacity: 0.8;
-            }
-            80% {
-                transform: translate(-22px, -50px) scale(0.5);
-                opacity: 0.2;
-            }
-            100% {
-                transform: translate(12px, -75px) scale(0.8);
-                opacity: 0.6;
-            }
-        }
-
-        /* ── Основной контейнер ── */
-        .page-wrapper {
-            width: 100%;
-            max-width: 850px;
-            position: relative;
-            z-index: 2;
-            margin: 2rem 1rem;
-        }
-
-        .test-card {
-            background: var(--card-bg);
-            border-radius: var(--radius-xl);
-            padding: 2.8rem 2.4rem 2.5rem;
-            box-shadow: var(--shadow-lg), 0 0 0 1px rgba(100, 80, 20, 0.3);
-            border: 1px solid rgba(160, 130, 50, 0.4);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-            transition: box-shadow 0.4s ease;
-            animation: cardRise 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
-            opacity: 0;
-            transform: translateY(25px);
-        }
-        @keyframes cardRise {
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        .test-card:hover {
-            box-shadow: 0 38px 60px -10px rgba(30, 20, 0, 0.45), 0 0 0 1px rgba(180, 140, 40, 0.5);
-        }
-
-        h1 {
-            font-size: 2.6rem;
-            font-weight: 900;
-            text-align: center;
-            background: linear-gradient(135deg, #3b6e2b, #aa8e1a, #5b8238);
-            background-clip: text;
-            -webkit-background-clip: text;
-            color: transparent;
-            margin-bottom: 0.3rem;
-            letter-spacing: 1px;
-            filter: drop-shadow(0 0 8px rgba(200, 180, 60, 0.5));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-        .subtitle {
-            text-align: center;
-            font-size: 1.1rem;
-            font-weight: 500;
-            color: #3a5727;
-            border-bottom: 2px dashed #c2b56b;
-            display: inline-block;
-            width: auto;
-            margin: 0 auto 1.5rem auto;
-            padding-bottom: 0.4rem;
-        }
-        .badge-row {
-            text-align: center;
-            margin-bottom: 1.8rem;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            justify-content: center;
-        }
-        .badge {
-            background: #c0e0a0;
-            padding: 0.35rem 1rem;
-            border-radius: 50px;
-            font-size: 0.72rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            color: #2c4822;
-            display: inline-block;
-            transition: all 0.3s;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-            letter-spacing: 0.3px;
-        }
-        .badge:hover {
-            background: #d4ecb0;
-            transform: translateY(-3px);
-            box-shadow: 0 8px 16px rgba(80, 80, 20, 0.2);
-        }
-
-        /* Вопросы */
-        .question-block {
-            background: #fefce8;
-            border-left: 7px solid #a6c86e;
-            padding: 1.1rem 1.3rem;
-            border-radius: 1.2rem;
-            margin-bottom: 1rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
-            animation: fadeSlideUp 0.5s ease backwards;
-            animation-delay: calc(var(--q-index, 0) * 0.03s + 0.05s);
-        }
-        @keyframes fadeSlideUp {
-            0% {
-                opacity: 0;
-                transform: translateY(15px);
-            }
-            100% {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        .question-block.correct-highlight {
-            border-left-color: #4caf50 !important;
-            background: #f0fdf0 !important;
-            box-shadow: 0 0 20px rgba(76, 175, 80, 0.3) !important;
-        }
-        .question-block.wrong-highlight {
-            border-left-color: #e53935 !important;
-            background: #fff5f5 !important;
-            box-shadow: 0 0 20px rgba(229, 57, 53, 0.3) !important;
-        }
-        .question-number {
-            font-weight: 800;
-            font-size: 0.9rem;
-            color: #8b6b2a;
-            font-family: 'Fira Code', 'Courier New', monospace;
-            background: rgba(255, 235, 160, 0.55);
-            padding: 0.15rem 0.5rem;
-            border-radius: 8px;
-            display: inline-block;
-            margin-bottom: 0.5rem;
-        }
-        .question-text {
-            font-weight: 700;
-            color: #2c4723;
-            margin-bottom: 0.7rem;
-            line-height: 1.5;
-            font-size: 1rem;
-        }
-        .options-list {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: 0.35rem;
-        }
-        .option-label {
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-            padding: 0.6rem 1rem;
-            border-radius: 1rem;
-            cursor: pointer;
-            transition: all 0.25s;
-            background: rgba(255, 255, 240, 0.6);
-            border: 1.5px solid transparent;
-            font-size: 0.92rem;
-            color: #2d3e26;
-            user-select: none;
-        }
-        .option-label:hover {
-            background: rgba(200, 220, 160, 0.5);
-            border-color: #b8c89a;
-            transform: translateX(3px);
-        }
-        .option-label input[type="radio"] {
-            accent-color: #5b8238;
-            width: 18px;
-            height: 18px;
-            flex-shrink: 0;
-            cursor: pointer;
-        }
-        .option-label.selected-correct {
-            background: #d4edda !important;
-            border-color: #4caf50 !important;
-            font-weight: 700;
-            color: #1b5e20 !important;
-        }
-        .option-label.selected-wrong {
-            background: #ffebee !important;
-            border-color: #e53935 !important;
-            font-weight: 700;
-            color: #b71c1c !important;
-        }
-        .option-label.show-correct {
-            background: #e8f5e9 !important;
-            border-color: #66bb6a !important;
-            border-style: dashed !important;
-        }
-        .rule-ref {
-            font-size: 0.7rem;
-            color: #8b6b2a;
-            margin-top: 0.4rem;
-            opacity: 0.7;
-        }
-        .result-icon {
-            font-size: 1.2rem;
-            margin-left: 0.3rem;
-        }
-
-        /* Кнопки */
-        .btn {
-            width: 100%;
-            padding: 1rem;
-            border: none;
-            border-radius: 1.5rem;
-            font-size: 1.2rem;
-            font-weight: 700;
-            letter-spacing: 0.4px;
-            cursor: pointer;
-            transition: all 0.25s;
-            text-transform: uppercase;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            margin-top: 1rem;
-        }
-        .btn-check {
-            background: linear-gradient(135deg, #2b5322, #458739);
-            color: #f2ffe5;
-            box-shadow: 0 12px 22px -8px #0a1f0a;
-            border: 1px solid #56944a;
-        }
-        .btn-check:hover {
-            background: linear-gradient(135deg, #346a29, #4f9e42);
-            transform: scale(0.98);
-            border-color: #7fc067;
-            box-shadow: 0 16px 28px -6px #0a1f0a;
-        }
-        .btn-check:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-        .btn-reset {
-            background: linear-gradient(135deg, #5a3e1f, #8b6b2a);
-            color: #fefce8;
-            box-shadow: 0 8px 18px -6px #2a1a05;
-            border: 1px solid #a08040;
-        }
-        .btn-reset:hover {
-            background: linear-gradient(135deg, #6b4a25, #9b7b35);
-            transform: scale(0.98);
-        }
-        .btn-submit {
-            background: linear-gradient(135deg, #1a3a5c, #2a6090);
-            color: #e8f0ff;
-            box-shadow: 0 12px 22px -8px #0a1a2a;
-            border: 1px solid #4a80b0;
-        }
-        .btn-submit:hover {
-            background: linear-gradient(135deg, #1e4568, #3070a0);
-            transform: scale(0.98);
-            border-color: #6aa0d0;
-        }
-
-        /* Результат */
-        .result-block {
-            background: rgba(255, 255, 240, 0.95);
-            border-radius: 1.8rem;
-            padding: 1.8rem 1.5rem;
-            text-align: center;
-            margin-top: 1.5rem;
-            border: 2px solid #c2b56b;
-            display: none;
-            animation: popIn 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
-        }
-        @keyframes popIn {
-            0% {
-                transform: scale(0.85);
-                opacity: 0;
-            }
-            100% {
-                transform: scale(1);
-                opacity: 1;
-            }
-        }
-        .result-block.visible {
-            display: block;
-        }
-        .result-score {
-            font-size: 3rem;
-            font-weight: 900;
-            background: linear-gradient(135deg, #3b6e2b, #aa8e1a);
-            background-clip: text;
-            -webkit-background-clip: text;
-            color: transparent;
-        }
-        .result-text {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: #3a5727;
-            margin: 0.5rem 0;
-        }
-        .result-detail {
-            font-size: 0.9rem;
-            color: #6f5e2e;
-            margin-bottom: 1rem;
-        }
-        .pass-threshold {
-            font-weight: 700;
-            color: #5b8238;
-        }
-
-        /* Поле ввода ника */
-        .nick-input-group {
-            display: flex;
-            gap: 0.8rem;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: center;
-            margin-top: 1rem;
-        }
-        .nick-input-group input {
-            flex: 1 1 200px;
-            padding: 0.75rem 1.2rem;
-            background: rgba(255, 255, 245, 0.9);
-            border: 2px solid #c2b56b;
-            border-radius: 1.2rem;
-            font-size: 1rem;
-            color: #2c4723;
-            font-family: inherit;
-            outline: none;
-            transition: all 0.25s;
-            min-width: 180px;
-        }
-        .nick-input-group input:focus {
-            border-color: #5b8238;
-            box-shadow: 0 0 0 3px rgba(91, 130, 56, 0.3);
-        }
-        .nick-input-group button {
-            flex-shrink: 0;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        .footer-note {
-            text-align: center;
-            margin-top: 1.8rem;
-            font-size: 0.8rem;
-            color: #5a6b4a;
-            border-top: 1px solid #d4c88a;
-            padding-top: 1rem;
-            line-height: 1.5;
-        }
-
-        /* Адаптив */
-        @media (max-width: 768px) {
-            .test-card {
-                padding: 1.5rem 1rem;
-                border-radius: 1.8rem;
-            }
-            h1 {
-                font-size: 1.8rem;
-            }
-            .question-block {
-                padding: 0.8rem 0.9rem;
-            }
-            .option-label {
-                padding: 0.5rem 0.7rem;
-                font-size: 0.85rem;
-            }
-            .btn {
-                font-size: 1rem;
-                padding: 0.8rem;
-            }
-            .result-score {
-                font-size: 2.2rem;
-            }
-        }
-        @media (max-width: 480px) {
-            h1 {
-                font-size: 1.4rem;
-            }
-            .test-card {
-                padding: 1rem 0.7rem;
-            }
-            .question-block {
-                padding: 0.6rem 0.7rem;
-                border-left-width: 5px;
-            }
-            .option-label {
-                font-size: 0.78rem;
-                gap: 0.3rem;
-            }
-            .option-label input[type="radio"] {
-                width: 16px;
-                height: 16px;
-            }
-            .badge {
-                font-size: 0.65rem;
-                padding: 0.25rem 0.6rem;
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>🌫️ FoggyLand | Заявка на Администратора</title>
+  <style>
+    /* ... весь твой туманный CSS без изменений ... */
+  </style>
 </head>
 <body>
-    <!-- ── Живой туманный фон ── -->
-    <div class="fog-background">
-        <div class="fog-cloud"></div>
-        <div class="fog-cloud"></div>
-        <div class="fog-cloud"></div>
-        <div class="fog-cloud"></div>
-        <div class="fog-cloud"></div>
-        <div class="fog-cloud"></div>
-        <div class="firefly"></div>
-        <div class="firefly"></div>
-        <div class="firefly"></div>
-        <div class="firefly"></div>
-        <div class="firefly"></div>
-        <div class="firefly"></div>
+<div class="fog-background">
+  <div class="fog-cloud"></div>
+  <div class="fog-cloud"></div>
+  <div class="fog-cloud"></div>
+  <div class="firefly"></div>
+  <div class="firefly"></div>
+  <div class="firefly"></div>
+</div>
+
+<div class="page-wrapper">
+  <div class="application-card" id="applicationCard">
+    <h1>
+      <span>🌲</span> FoggyLand <span>🌫️</span>
+    </h1>
+    <div class="subtitle">
+      <span>👑</span> Стать администратором <span>✨</span>
     </div>
 
-    <div class="page-wrapper">
-        <div class="test-card" id="testCard">
-            <h1>
-                <span>🌲</span> FoggyLand <span>🌫️</span>
-            </h1>
-            <div style="text-align: center;">
-                <span class="subtitle">📝 Тест на знание правил сервера</span>
-            </div>
-            <div class="badge-row">
-                <span class="badge">📜 20 вопросов</span>
-                <span class="badge">🎯 Порог: 16/20 (80%)</span>
-                <span class="badge">⏱️ Без ограничения времени</span>
-            </div>
-
-            <p style="text-align:center; color:#5a6b4a; margin-bottom:1.5rem; font-size:0.9rem;">
-                Внимательно прочитайте <strong>правила сервера</strong> перед прохождением теста.<br>
-                Для успешной подачи заявки необходимо ответить правильно минимум на <strong>16 из 20</strong> вопросов.
-            </p>
-
-            <!-- Форма с вопросами -->
-            <form id="testForm" autocomplete="off">
-                <div id="questionsContainer">
-                    <!-- Вопросы генерируются через JS -->
-                </div>
-
-                <button type="button" class="btn btn-check" id="checkBtn">
-                    <span>✅</span> Проверить результат
-                </button>
-                <button type="button" class="btn btn-reset hidden" id="resetBtn">
-                    <span>🔄</span> Пройти заново
-                </button>
-            </form>
-
-            <!-- Блок с результатом -->
-            <div class="result-block" id="resultBlock">
-                <div class="result-score" id="resultScore">0/20</div>
-                <div class="result-text" id="resultText"></div>
-                <div class="result-detail" id="resultDetail"></div>
-
-                <!-- Форма отправки (только при успехе) -->
-                <div id="submitSection" class="hidden">
-                    <p style="font-weight:600; color:#2c4723; margin-top:0.5rem;">
-                        🎉 Отлично! Вы можете подать заявку на администратора.
-                    </p>
-                    <div class="nick-input-group">
-                        <input type="text" id="nicknameInput" placeholder="⛏️ Ваш никнейм Minecraft" required>
-                        <button type="button" class="btn btn-submit" id="submitBtn" style="width:auto; margin-top:0; white-space:nowrap;">
-                            <span>📩</span> Отправить заявку
-                        </button>
-                    </div>
-                    <p style="font-size:0.75rem; color:#8b8b6b; margin-top:0.5rem;">
-                        Результат теста будет приложен к заявке автоматически.
-                    </p>
-                </div>
-                <div id="failSection" class="hidden">
-                    <p style="color:#a52a1a; font-weight:600;">
-                        😔 К сожалению, вы не набрали нужное количество баллов.
-                    </p>
-                    <p style="font-size:0.85rem; color:#6f5e2e;">
-                        Перечитайте правила и попробуйте снова!
-                    </p>
-                </div>
-            </div>
-
-            <div class="footer-note">
-                <span>🌲 FoggyLand · ванильный SMP · честная игра</span><br>
-                <span>🔒 Результаты теста конфиденциальны.</span>
-            </div>
+    <form id="adminApplicationForm">
+      <!-- Секция 1: Личная информация -->
+      <div class="form-section">
+        <div class="section-title"><span>📋</span> 1. Личные данные</div>
+        <div class="row">
+          <div class="form-group">
+            <label>🧑 Имя и фамилия</label>
+            <input type="text" name="fullName" placeholder="Алексей Иванов" required autocomplete="name" maxlength="40">
+          </div>
+          <div class="form-group">
+            <label>⛏️ Никнейм Minecraft</label>
+            <input type="text" name="minecraftNick" placeholder="MrKronick" required maxlength="28">
+          </div>
         </div>
+        <div class="row">
+          <div class="form-group">
+            <label>📅 Возраст</label>
+            <select name="age" required>
+              <option value="" disabled selected>Выберите возраст</option>
+              <option value="14">14</option><option value="15">15</option><option value="16">16</option>
+              <option value="17">17</option><option value="18-24">18-24</option><option value="25-30">25-30</option>
+              <option value="30+">30+</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>📬 Telegram</label>
+            <input type="text" name="telegram" placeholder="@foggyland" required maxlength="30">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>🌍 Часовой пояс / страна</label>
+          <input type="text" name="timezone" placeholder="МСК (UTC+3)" required>
+        </div>
+      </div>
+
+      <!-- Секция 2: Опыт на сервере (бывший "Опыт модератора") -->
+      <div class="form-section">
+        <div class="section-title"><span>⚡</span> 2. Опыт на сервере</div>
+        <div class="form-group">
+          <label>📆 Как долго вы играете на FoggyLand?</label>
+          <input type="text" name="modDuration" placeholder="3 месяца, с января 2026" required>
+        </div>
+        <div class="form-group">
+          <label>🔨 Какую активность вы проявляли на сервере? (помощь игрокам, участие в жизни сообщества)</label>
+          <textarea name="modTasks" placeholder="Помогал новичкам, строил спавн..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label>📊 Сколько часов в неделю вы готовы уделять администрированию?</label>
+          <select name="activityHours" required>
+            <option value="" disabled selected>Выберите...</option>
+            <option value="5-10">5-10 часов</option>
+            <option value="10-20">10-20 часов</option>
+            <option value="20-35">20-35 часов</option>
+            <option value="35+">35+ часов</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Секция 3: Знание правил (обновлённые ссылки) -->
+      <div class="form-section">
+        <div class="section-title"><span>📜</span> 3. Тест на знание правил сервера</div>
+        <p style="color:#b4cf9e; margin-bottom:1rem; font-size:0.9rem;">
+          Ознакомьтесь с правилами: <a href="https://rules.foggyland.ru" target="_blank" style="color:#9bc17a;">rules.foggyland.ru</a><br>
+          Ответьте развёрнуто, опираясь на правила.
+        </p>
+
+        <div class="form-group">
+          <label>❓ 1. Какое наказание за использование читов / чит-клиентов?</label>
+          <textarea name="rule_q1" placeholder="Согласно правилам..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 2. Что грозит за массовый гриферинг и разбойные нападения?</label>
+          <textarea name="rule_q2" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 3. Как наказывается дюп предметов (не ТНТ)?</label>
+          <textarea name="rule_q3" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 4. Разрешено ли использование твинков (вторых аккаунтов)?</label>
+          <textarea name="rule_q4" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 5. Можно ли продавать игровые ресурсы за реальные деньги?</label>
+          <textarea name="rule_q5" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 6. Опишите наказания за PvP без согласия</label>
+          <textarea name="rule_q6" placeholder="Упомяните разные случаи..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 7. Что считается помехой работе администрации?</label>
+          <textarea name="rule_q7" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 8. Какое наказание за спам и злоупотребление капсом?</label>
+          <textarea name="rule_q8" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 9. Что грозит за оскорбления личности и провокации?</label>
+          <textarea name="rule_q9" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 10. Разрешена ли реклама сторонних серверов?</label>
+          <textarea name="rule_q10" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 11. Как следует поступить, если игрок намеренно создаёт лаги (лаг-машина)?</label>
+          <textarea name="rule_q11" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>❓ 12. Можно ли разглашать сид мира?</label>
+          <textarea name="rule_q12" required></textarea>
+        </div>
+      </div>
+
+      <!-- Секция 4: Технические навыки -->
+      <div class="form-section">
+        <div class="section-title"><span>⚙️</span> 4. Технические и административные навыки</div>
+        <div class="form-group">
+          <label>🖥️ Знакомы ли вы с консолью сервера, плагинами (Essentials, CoreProtect)?</label>
+          <textarea name="techSkills" placeholder="Опишите ваш опыт..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>📂 Умеете ли вы анализировать логи, находить причины лагов?</label>
+          <select name="logAnalysis" required>
+            <option value="" disabled selected>Выберите...</option>
+            <option value="yes">Да, имею опыт</option>
+            <option value="basic">Базовые знания</option>
+            <option value="no">Нет, но готов учиться</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>🗂️ Как вы организуете работу команды модераторов? (делегирование, график)</label>
+          <textarea name="teamManagement" placeholder="Ваш подход..."></textarea>
+        </div>
+      </div>
+
+      <!-- Секция 5: Решение конфликтов -->
+      <div class="form-section">
+        <div class="section-title"><span>🧩</span> 5. Решение конфликтных ситуаций</div>
+        <div class="form-group">
+          <label>🎯 Игрок А обвиняет игрока Б в краже алмазов. Ваши действия?</label>
+          <textarea name="situation1" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>🔥 В чате разгорается скандал между двумя кланами. Как вы погасите конфликт?</label>
+          <textarea name="situation2" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>🕵️ Вы обнаружили, что модератор злоупотребляет полномочиями. Что предпримете?</label>
+          <textarea name="situation3" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>📢 Как вы поступите, если популярный игрок нарушает правила, но сообщество за него заступается?</label>
+          <textarea name="situation4" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>⏳ Опишите ваш подход к выдаче наказаний: гибкость или строгость? Примеры.</label>
+          <textarea name="punishmentStyle" required></textarea>
+        </div>
+      </div>
+
+      <!-- Секция 6: Мотивация -->
+      <div class="form-section">
+        <div class="section-title"><span>💎</span> 6. Мотивация и видение</div>
+        <div class="form-group">
+          <label>🌟 Почему вы хотите стать администратором FoggyLand?</label>
+          <textarea name="motivation" placeholder="Расскажите, что вас вдохновляет..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label>🔮 Какие улучшения вы бы предложили для сервера в роли администратора?</label>
+          <textarea name="suggestions" required></textarea>
+        </div>
+        <div class="form-group">
+          <label>🤝 Готовы ли вы уделять серверу не менее 15 часов в неделю?</label>
+          <div class="checkbox-group">
+            <label class="checkbox-item"><input type="radio" name="commitment" value="yes" required> ✅ Да, готов(а)</label>
+            <label class="checkbox-item"><input type="radio" name="commitment" value="maybe"> ⚠️ Зависит от обстоятельств</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- КОД ПОДТВЕРЖДЕНИЯ -->
+      <div class="form-group">
+        <label>🤖 Код подтверждения из бота</label>
+        <input type="text" name="verification_code" placeholder="FL-XXXXXX" required maxlength="9">
+        <small style="color:#a2c0a0; display:block; margin-top:0.3rem;">
+          📌 Напиши /start боту <b>@foggylandbot</b> и скопируй код сюда
+        </small>
+      </div>
+
+      <input type="hidden" name="form_type" value="admin_application">
+      <input type="hidden" name="timestamp" id="timestampInput">
+
+      <button type="submit">
+        <span>🍃</span> Отправить заявку <span>🍃</span>
+      </button>
+    </form>
+
+    <div id="successBlock" class="success-message hidden">
+      <span style="font-size: 2rem;">🎉</span>
+      <strong>Заявка отправлена!</strong>
+      <span>Администрация FoggyLand рассмотрит её в течение 5–7 дней.</span>
+      <span style="font-size: 0.9rem; opacity:0.9;">Ожидайте ответа в Telegram (не блокируйте бота).</span>
     </div>
 
-    <script>
-        (function() {
-            // ── Массив вопросов (20 штук по всем разделам правил) ──
-            const questions = [{
-                id: 1,
-                question: 'Что автоматически подтверждает игрок, начиная играть на сервере FoggyLand?',
-                options: [
-                    'Согласие с правилами сервера',
-                    'Готовность купить подписку',
-                    'Согласие на передачу персональных данных третьим лицам',
-                    'Отказ от права на обжалование бана'
-                ],
-                correct: 0,
-                ruleRef: 'п. 1.1'
-            }, {
-                id: 2,
-                question: 'Освобождает ли незнание правил сервера от ответственности за их нарушение?',
-                options: [
-                    'Да, если нарушение мелкое',
-                    'Да, для новых игроков действует испытательный срок',
-                    'Нет, незнание правил не освобождает от ответственности',
-                    'Да, если игрок с подпиской'
-                ],
-                correct: 2,
-                ruleRef: 'п. 1.2'
-            }, {
-                id: 3,
-                question: 'Какое наказание предусмотрено за попытку навредить серверу любыми способами?',
-                options: [
-                    'Блокировка аккаунта на 7 дней',
-                    'Вечный бан по IP',
-                    'Блокировка чата на 24 часа',
-                    'Снятие подписки без бана'
-                ],
-                correct: 1,
-                ruleRef: 'п. 1.3'
-            }, {
-                id: 4,
-                question: 'Какое наказание за обман Администрации/Модерации сервера?',
-                options: [
-                    'Блокировка чата на 6 часов',
-                    'Блокировка аккаунта на 3 дня',
-                    'Блокировка аккаунта навсегда + бан по IP',
-                    'Предупреждение (варн)'
-                ],
-                correct: 2,
-                ruleRef: 'п. 1.5'
-            }, {
-                id: 5,
-                question: 'Что грозит за создание бунтов на сервере и настраивание игроков против проекта?',
-                options: [
-                    'Блокировка чата на 1 час',
-                    'Бан на 7 дней + снятие привилегий',
-                    'Кик с сервера',
-                    'Бан на 1 день'
-                ],
-                correct: 1,
-                ruleRef: 'п. 1.11'
-            }, {
-                id: 6,
-                question: 'Какое наказание предусмотрено за расизм, нацизм и массовый буллинг?',
-                options: [
-                    'Блокировка чата на 30 минут',
-                    'Бан на 3 дня',
-                    'Снятие привилегий + блокировка аккаунта по IP',
-                    'Кик и предупреждение'
-                ],
-                correct: 2,
-                ruleRef: 'п. 1.19'
-            }, {
-                id: 7,
-                question: 'Какое наказание за оскорбления в чате?',
-                options: [
-                    'Блокировка чата на 30 минут',
-                    'Бан на 1 день',
-                    'Кик с сервера',
-                    'Блокировка чата на 6 часов'
-                ],
-                correct: 0,
-                ruleRef: 'п. 2.1'
-            }, {
-                id: 8,
-                question: 'Что запрещено согласно п. 2.5 правил сервера?',
-                options: [
-                    'Писать в чат более 3 сообщений подряд',
-                    'Рекламировать сторонние проекты и каналы',
-                    'Использовать заглавные буквы',
-                    'Обсуждать игровые тактики'
-                ],
-                correct: 1,
-                ruleRef: 'п. 2.5'
-            }, {
-                id: 9,
-                question: 'Какое наказание за оскорбление родственников и родителей игрока?',
-                options: [
-                    'Блокировка чата на 30 минут',
-                    'Блокировка чата на 6 часов',
-                    'Блокировка чата на 24 часа',
-                    'Бан на 3 дня'
-                ],
-                correct: 2,
-                ruleRef: 'п. 2.7'
-            }, {
-                id: 10,
-                question: 'Что из перечисленного запрещено администратору согласно п. 3.14?',
-                options: [
-                    'Использовать команду /tphere',
-                    'Менять блоки на спавне на долгое время (более 5–10 минут)',
-                    'Находиться в GM 1',
-                    'Проверять игроков на читы'
-                ],
-                correct: 1,
-                ruleRef: 'п. 3.14'
-            }, {
-                id: 11,
-                question: 'Что разрешено делать с аккаунта администратора согласно п. 3.17?',
-                options: [
-                    'Играть в выживании (GM 0) вместе с обычными игроками',
-                    'Выдавать ресурсы новичкам',
-                    'Только модерирование сервера (для выживания нужен отдельный аккаунт)',
-                    'Продавать подписку через себя'
-                ],
-                correct: 2,
-                ruleRef: 'п. 3.17'
-            }, {
-                id: 12,
-                question: 'Какое наказание за намеренное создание лаг-машин (п. 4.1)?',
-                options: [
-                    'Блокировка аккаунта на 12 часов',
-                    'Кик и предупреждение',
-                    'Блокировка навсегда по IP + снятие привилегий',
-                    'Бан на 2 дня'
-                ],
-                correct: 2,
-                ruleRef: 'п. 4.1 (намеренно)'
-            }, {
-                id: 13,
-                question: 'Что запрещено строить на сервере согласно п. 4.3?',
-                options: [
-                    'Дома из булыжника',
-                    'Половые органы, нецензурные надписи, фашистскую символику',
-                    'Фермы мобов',
-                    'Подземные базы'
-                ],
-                correct: 1,
-                ruleRef: 'п. 4.3'
-            }, {
-                id: 14,
-                question: 'Какое наказание за попытку передачи (продажи) аккаунта третьим лицам?',
-                options: [
-                    'Бан на 3 дня',
-                    'Снятие подписки',
-                    'Вечный бан',
-                    'Блокировка чата на 24 часа'
-                ],
-                correct: 2,
-                ruleRef: 'п. 5.1'
-            }, {
-                id: 15,
-                question: 'Какое наказание за использование читов / чит-клиентов?',
-                options: [
-                    'Блокировка аккаунта на 2 дня',
-                    'Вечный бан',
-                    'Блокировка чата на 6 часов',
-                    'Кик и предупреждение'
-                ],
-                correct: 0,
-                ruleRef: 'п. 6.1'
-            }, {
-                id: 16,
-                question: 'Какое наказание за отказ от проверки на читы?',
-                options: [
-                    'Кик с сервера',
-                    'Блокировка аккаунта на 2 дня',
-                    'Блокировка чата на 1 час',
-                    'Снятие подписки без бана'
-                ],
-                correct: 1,
-                ruleRef: 'п. 6.2'
-            }, {
-                id: 17,
-                question: 'Что делать, если проверяющий просит включить веб-камеру во время проверки на читы?',
-                options: [
-                    'Включить — это стандартная процедура',
-                    'Отключиться от проверки и срочно сообщить Администрации',
-                    'Согласиться, но записывать экран',
-                    'Попросить друга присутствовать рядом'
-                ],
-                correct: 1,
-                ruleRef: 'п. 7.2'
-            }, {
-                id: 18,
-                question: 'Какое наказание за гриф (разрушение чужой постройки) согласно п. 8.1?',
-                options: [
-                    'Блокировка аккаунта на 1 день и откат постройки',
-                    'Бан на 7 дней',
-                    'Блокировка чата на 6 часов',
-                    'Кик и предупреждение'
-                ],
-                correct: 0,
-                ruleRef: 'п. 8.1'
-            }, {
-                id: 19,
-                question: 'Можно ли тимиться с читером согласно п. 6.3?',
-                options: [
-                    'Да, если читер — ваш друг',
-                    'Да, но только в PvP-зонах',
-                    'Нет, за это бан на 2 дня либо снятие подписки',
-                    'Да, если вы не знали о читах'
-                ],
-                correct: 2,
-                ruleRef: 'п. 6.3'
-            }, {
-                id: 20,
-                question: 'Какое наказание за обход бана (п. 8.5)?',
-                options: [
-                    'Бан на 3 дня',
-                    'Блокировка аккаунта навсегда, при повторе — бан по IP навсегда',
-                    'Блокировка чата на 24 часа',
-                    'Дополнительный бан на 7 дней'
-                ],
-                correct: 1,
-                ruleRef: 'п. 8.5'
-            }];
+    <div class="footer">
+      <span>🌲 FoggyLand · только честная игра</span><br>
+      <span>🔒 Все данные конфиденциальны.</span>
+    </div>
+  </div>
+</div>
 
-            const questionsContainer = document.getElementById('questionsContainer');
-            const checkBtn = document.getElementById('checkBtn');
-            const resetBtn = document.getElementById('resetBtn');
-            const resultBlock = document.getElementById('resultBlock');
-            const resultScore = document.getElementById('resultScore');
-            const resultText = document.getElementById('resultText');
-            const resultDetail = document.getElementById('resultDetail');
-            const submitSection = document.getElementById('submitSection');
-            const failSection = document.getElementById('failSection');
-            const submitBtn = document.getElementById('submitBtn');
-            const nicknameInput = document.getElementById('nicknameInput');
-            const testForm = document.getElementById('testForm');
+<script>
+  (function() {
+    const form = document.getElementById('adminApplicationForm');
+    const successDiv = document.getElementById('successBlock');
+    const timestampInput = document.getElementById('timestampInput');
 
-            let testChecked = false;
-            let lastScore = 0;
-            let lastCorrectCount = 0;
+    if (timestampInput) {
+      timestampInput.value = new Date().toISOString();
+    }
 
-            const PASS_THRESHOLD = 16; // 80% из 20
-            const WEBHOOK_URL = 'https://moderfoggyland.onrender.com/admin-webhook';
+    const WEBHOOK_URL = 'https://moderfoggyland.onrender.com/admin-webhook';  // ❗ свой Render URL
 
-            // ── Рендер вопросов ──
-            function renderQuestions() {
-                questionsContainer.innerHTML = '';
-                questions.forEach((q, index) => {
-                    const block = document.createElement('div');
-                    block.className = 'question-block';
-                    block.style.setProperty('--q-index', index);
-                    block.setAttribute('data-question-id', q.id);
-                    block.innerHTML = `
-                        <div class="question-number">Вопрос ${q.id} из 20 <span style="opacity:0.6;">(${q.ruleRef})</span></div>
-                        <div class="question-text">${q.question}</div>
-                        <ul class="options-list">
-                            ${q.options.map((opt, optIndex) => `
-                                <li>
-                                    <label class="option-label" data-qid="${q.id}" data-optindex="${optIndex}">
-                                        <input type="radio" name="q${q.id}" value="${optIndex}" data-qid="${q.id}">
-                                        ${opt}
-                                    </label>
-                                </li>
-                            `).join('')}
-                        </ul>
-                    `;
-                    questionsContainer.appendChild(block);
-                });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
 
-                // Обработчики клика по лейблам (улучшенный UX)
-                document.querySelectorAll('.option-label').forEach(label => {
-                    label.addEventListener('click', function(e) {
-                        if (testChecked) return; // после проверки не даём менять
-                        const radio = this.querySelector('input[type="radio"]');
-                        if (radio) {
-                            radio.checked = true;
-                            // Снимаем выделение с других лейблов этого вопроса
-                            const qid = this.getAttribute('data-qid');
-                            document.querySelectorAll(`.option-label[data-qid="${qid}"]`).forEach(
-                                lbl => {
-                                    lbl.style.background = '';
-                                    lbl.style.borderColor = 'transparent';
-                                    lbl.style.fontWeight = '';
-                                });
-                            // Подсвечиваем выбранный
-                            this.style.background = 'rgba(200,220,160,0.6)';
-                            this.style.borderColor = '#a6c86e';
-                            this.style.fontWeight = '600';
-                        }
-                    });
-                });
+      const ageSelect = form.querySelector('select[name="age"]');
+      if (ageSelect && ageSelect.value === "") {
+        alert('Пожалуйста, укажите ваш возраст.');
+        return;
+      }
 
-                // Обработчики для радио-кнопок
-                document.querySelectorAll('input[type="radio"]').forEach(radio => {
-                    radio.addEventListener('change', function() {
-                        if (testChecked) return;
-                        const qid = this.getAttribute('data-qid');
-                        document.querySelectorAll(`.option-label[data-qid="${qid}"]`).forEach(
-                            lbl => {
-                                lbl.style.background = '';
-                                lbl.style.borderColor = 'transparent';
-                                lbl.style.fontWeight = '';
-                            });
-                        const parentLabel = this.closest('.option-label');
-                        if (parentLabel && this.checked) {
-                            parentLabel.style.background = 'rgba(200,220,160,0.6)';
-                            parentLabel.style.borderColor = '#a6c86e';
-                            parentLabel.style.fontWeight = '600';
-                        }
-                    });
-                });
-            }
+      // Проверка лимитов символов
+      const limits = {
+        fullName: 40,
+        minecraftNick: 28,
+        telegram: 30,
+        verification_code: 9
+      };
+      for (const [fieldName, maxLen] of Object.entries(limits)) {
+        const field = form.querySelector(`[name="${fieldName}"]`);
+        if (field && field.value.length > maxLen) {
+          alert(`⚠️ Поле "${fieldName}" превышает максимум в ${maxLen} символов!`);
+          field.focus();
+          return;
+        }
+      }
 
-            // ── Проверка ответов ──
-            function checkAnswers() {
-                let correctCount = 0;
-                const totalQuestions = questions.length;
+      // Собираем данные
+      const data = {
+        verification_code: form.querySelector('[name="verification_code"]').value.trim(),
+        fullName: form.querySelector('[name="fullName"]').value.trim(),
+        minecraftNick: form.querySelector('[name="minecraftNick"]').value.trim(),
+        age: ageSelect ? ageSelect.value : '',
+        telegram: form.querySelector('[name="telegram"]').value.trim(),
+        timezone: form.querySelector('[name="timezone"]').value.trim(),
+        modDuration: form.querySelector('[name="modDuration"]').value.trim(),
+        modTasks: form.querySelector('[name="modTasks"]').value.trim(),
+        activityHours: form.querySelector('[name="activityHours"]').value,
+        rule_q1: form.querySelector('[name="rule_q1"]').value.trim(),
+        rule_q2: form.querySelector('[name="rule_q2"]').value.trim(),
+        rule_q3: form.querySelector('[name="rule_q3"]').value.trim(),
+        rule_q4: form.querySelector('[name="rule_q4"]').value.trim(),
+        rule_q5: form.querySelector('[name="rule_q5"]').value.trim(),
+        rule_q6: form.querySelector('[name="rule_q6"]').value.trim(),
+        rule_q7: form.querySelector('[name="rule_q7"]').value.trim(),
+        rule_q8: form.querySelector('[name="rule_q8"]').value.trim(),
+        rule_q9: form.querySelector('[name="rule_q9"]').value.trim(),
+        rule_q10: form.querySelector('[name="rule_q10"]').value.trim(),
+        rule_q11: form.querySelector('[name="rule_q11"]').value.trim(),
+        rule_q12: form.querySelector('[name="rule_q12"]').value.trim(),
+        techSkills: form.querySelector('[name="techSkills"]').value.trim(),
+        logAnalysis: form.querySelector('[name="logAnalysis"]').value,
+        teamManagement: form.querySelector('[name="teamManagement"]').value.trim(),
+        situation1: form.querySelector('[name="situation1"]').value.trim(),
+        situation2: form.querySelector('[name="situation2"]').value.trim(),
+        situation3: form.querySelector('[name="situation3"]').value.trim(),
+        situation4: form.querySelector('[name="situation4"]').value.trim(),
+        punishmentStyle: form.querySelector('[name="punishmentStyle"]').value.trim(),
+        motivation: form.querySelector('[name="motivation"]').value.trim(),
+        suggestions: form.querySelector('[name="suggestions"]').value.trim(),
+        commitment: form.querySelector('[name="commitment"]:checked')?.value || '',
+        submitted_at: new Date().toISOString()
+      };
 
-                // Сначала сбрасываем все подсветки
-                document.querySelectorAll('.question-block').forEach(block => {
-                    block.classList.remove('correct-highlight', 'wrong-highlight');
-                });
-                document.querySelectorAll('.option-label').forEach(label => {
-                    label.classList.remove('selected-correct', 'selected-wrong', 'show-correct');
-                    label.style.background = '';
-                    label.style.borderColor = 'transparent';
-                    label.style.fontWeight = '';
-                });
+      try {
+        const response = await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
 
-                // Проверяем каждый вопрос
-                questions.forEach(q => {
-                    const selectedRadio = document.querySelector(`input[name="q${q.id}"]:checked`);
-                    const questionBlock = document.querySelector(`.question-block[data-question-id="${q.id}"]`);
-                    const allLabels = document.querySelectorAll(`.option-label[data-qid="${q.id}"]`);
-
-                    // Подсвечиваем правильный ответ
-                    allLabels.forEach(label => {
-                        const optIndex = parseInt(label.getAttribute('data-optindex'));
-                        if (optIndex === q.correct) {
-                            label.classList.add('show-correct');
-                        }
-                    });
-
-                    if (selectedRadio) {
-                        const selectedValue = parseInt(selectedRadio.value);
-                        const selectedLabel = selectedRadio.closest('.option-label');
-
-                        if (selectedValue === q.correct) {
-                            correctCount++;
-                            if (selectedLabel) {
-                                selectedLabel.classList.add('selected-correct');
-                            }
-                            if (questionBlock) {
-                                questionBlock.classList.add('correct-highlight');
-                            }
-                        } else {
-                            if (selectedLabel) {
-                                selectedLabel.classList.add('selected-wrong');
-                            }
-                            if (questionBlock) {
-                                questionBlock.classList.add('wrong-highlight');
-                            }
-                        }
-                    } else {
-                        // Вопрос пропущен — подсвечиваем как неправильный
-                        if (questionBlock) {
-                            questionBlock.classList.add('wrong-highlight');
-                        }
-                    }
-                });
-
-                lastCorrectCount = correctCount;
-                lastScore = Math.round((correctCount / totalQuestions) * 100);
-                return { correctCount, totalQuestions, score: lastScore };
-            }
-
-            // ── Отображение результата ──
-            function displayResult(correctCount, totalQuestions, score) {
-                resultBlock.classList.add('visible');
-                resultScore.textContent = `${correctCount}/${totalQuestions}`;
-                resultDetail.textContent = `Процент правильных ответов: ${score}%`;
-
-                if (correctCount >= PASS_THRESHOLD) {
-                    resultText.textContent = '🎉 Тест пройден успешно!';
-                    resultText.style.color = '#2e7d32';
-                    submitSection.classList.remove('hidden');
-                    failSection.classList.add('hidden');
-                } else {
-                    resultText.textContent = '😔 Тест не пройден';
-                    resultText.style.color = '#c62828';
-                    submitSection.classList.add('hidden');
-                    failSection.classList.remove('hidden');
-                    resultDetail.textContent +=
-                        ` | Необходимо минимум ${PASS_THRESHOLD}/${totalQuestions} правильных ответов.`;
-                }
-
-                resultBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-
-            // ── Обработчик кнопки "Проверить результат" ──
-            checkBtn.addEventListener('click', function() {
-                // Проверяем, что на все вопросы даны ответы
-                const unanswered = questions.filter(q => {
-                    return !document.querySelector(`input[name="q${q.id}"]:checked`);
-                });
-
-                if (unanswered.length > 0) {
-                    const proceed = confirm(
-                        `⚠️ Вы не ответили на ${unanswered.length} вопрос(ов) из ${questions.length}. Они будут засчитаны как неправильные. Продолжить?`
-                    );
-                    if (!proceed) return;
-                }
-
-                testChecked = true;
-                const { correctCount, totalQuestions, score } = checkAnswers();
-                displayResult(correctCount, totalQuestions, score);
-
-                // Блокируем радиокнопки от изменений
-                document.querySelectorAll('input[type="radio"]').forEach(radio => {
-                    radio.disabled = true;
-                });
-                document.querySelectorAll('.option-label').forEach(label => {
-                    label.style.cursor = 'default';
-                    label.style.pointerEvents = 'none';
-                });
-
-                checkBtn.classList.add('hidden');
-                resetBtn.classList.remove('hidden');
-            });
-
-            // ── Обработчик кнопки "Пройти заново" ──
-            resetBtn.addEventListener('click', function() {
-                testChecked = false;
-                document.querySelectorAll('input[type="radio"]').forEach(radio => {
-                    radio.disabled = false;
-                    radio.checked = false;
-                });
-                document.querySelectorAll('.option-label').forEach(label => {
-                    label.style.cursor = 'pointer';
-                    label.style.pointerEvents = 'auto';
-                    label.classList.remove('selected-correct', 'selected-wrong', 'show-correct');
-                    label.style.background = '';
-                    label.style.borderColor = 'transparent';
-                    label.style.fontWeight = '';
-                });
-                document.querySelectorAll('.question-block').forEach(block => {
-                    block.classList.remove('correct-highlight', 'wrong-highlight');
-                });
-                resultBlock.classList.remove('visible');
-                submitSection.classList.add('hidden');
-                failSection.classList.add('hidden');
-                checkBtn.classList.remove('hidden');
-                resetBtn.classList.add('hidden');
-                nicknameInput.value = '';
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            });
-
-            // ── Отправка заявки ──
-            submitBtn.addEventListener('click', async function() {
-                const nickname = nicknameInput.value.trim();
-                if (!nickname) {
-                    alert('⚠️ Пожалуйста, введите ваш никнейм Minecraft.');
-                    nicknameInput.focus();
-                    return;
-                }
-
-                // Собираем ответы для отправки
-                const answers = {};
-                questions.forEach(q => {
-                    const selectedRadio = document.querySelector(`input[name="q${q.id}"]:checked`);
-                    answers[`q${q.id}`] = selectedRadio ? parseInt(selectedRadio.value) : null;
-                });
-
-                const payload = {
-                    minecraftNick: nickname,
-                    form_type: 'rules_test',
-                    test_score: `${lastCorrectCount}/20 (${lastScore}%)`,
-                    test_passed: lastCorrectCount >= PASS_THRESHOLD,
-                    correct_count: lastCorrectCount,
-                    total_questions: 20,
-                    percentage: lastScore,
-                    answers: answers,
-                    submitted_at: new Date().toISOString()
-                };
-
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<span>⏳</span> Отправка...';
-
-                try {
-                    const response = await fetch(WEBHOOK_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (response.ok) {
-                        submitBtn.innerHTML = '<span>✅</span> Отправлено!';
-                        submitBtn.style.background = 'linear-gradient(135deg, #2e7d32, #4caf50)';
-                        submitBtn.style.borderColor = '#66bb6a';
-                        nicknameInput.disabled = true;
-                        setTimeout(() => {
-                            alert(
-                                '🎉 Заявка успешно отправлена! Администрация рассмотрит её в ближайшее время. Ожидайте ответа в Telegram.'
-                                );
-                        }, 300);
-                    } else {
-                        const err = await response.json().catch(() => ({}));
-                        alert('⚠️ Ошибка отправки: ' + (err.error || 'Не удалось отправить заявку. Попробуйте позже.'));
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = '<span>📩</span> Отправить заявку';
-                    }
-                } catch (networkError) {
-                    console.error('Ошибка сети:', networkError);
-                    alert('🌐 Ошибка сети. Проверьте подключение к интернету и попробуйте снова.');
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<span>📩</span> Отправить заявку';
-                }
-            });
-
-            // ── Инициализация ──
-            function init() {
-                renderQuestions();
-            }
-
-            if (document.readyState === 'loading') {
-                window.addEventListener('DOMContentLoaded', init);
-            } else {
-                init();
-            }
-        })();
-    </script>
+        if (response.ok) {
+          form.classList.add('hidden');
+          successDiv.classList.remove('hidden');
+          successDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          form.reset();
+        } else {
+          const err = await response.json().catch(() => ({}));
+          alert('⚠️ Ошибка: ' + (err.error || 'не удалось отправить заявку'));
+        }
+      } catch (networkError) {
+        console.error('Ошибка сети:', networkError);
+        alert('🌐 Ошибка сети. Проверьте подключение к интернету.');
+      }
+    });
+  })();
+</script>
 </body>
 </html>
