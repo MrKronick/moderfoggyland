@@ -17,6 +17,132 @@ ADMIN_APPS_FILE = "admin_applications.json"
 PENDING_CODES_FILE = "pending_codes.json"
 PORT = int(os.environ.get("PORT", 10000))
 RENDER_URL = "https://moderfoggyland.onrender.com"   # ❗ Свой Render URL
+ADMIN_PANEL_HTML = """
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Админ-панель FoggyLand</title>
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #1a2e1a; color: #d0e6d5; padding: 2rem; }
+    h1 { color: #9bc17a; }
+    table { width: 100%; border-collapse: collapse; background: rgba(20,30,18,0.8); border-radius: 1rem; overflow: hidden; }
+    th, td { padding: 0.8rem; border: 1px solid #2f4827; text-align: left; }
+    th { background: #253d25; }
+    .btn { border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; font-weight: bold; }
+    .accept { background: #2d8a3e; color: white; }
+    .reject { background: #8a2d2d; color: white; }
+    .hidden { display: none; }
+    .details { background: #1e2e1e; padding: 1rem; margin-top: 0.5rem; border-radius: 0.5rem; }
+    a { color: #9bc17a; }
+  </style>
+</head>
+<body>
+  <h1>👑 Админ-панель FoggyLand</h1>
+  <p>Пароль для доступа: <strong>foggysecret</strong></p>
+  <div id="apps-container">Загрузка...</div>
+
+  <script>
+    const PASSWORD = 'foggysecret';  // должен совпадать с ADMIN_PASSWORD
+    const API_BASE = window.location.origin;
+
+    async function loadApps() {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/applications?password=${PASSWORD}`);
+        if (!res.ok) { document.getElementById('apps-container').innerHTML = 'Ошибка загрузки'; return; }
+        const apps = await res.json();
+        renderApps(apps);
+      } catch(e) {
+        document.getElementById('apps-container').innerHTML = 'Ошибка сети';
+      }
+    }
+
+    function renderApps(apps) {
+      if (apps.length === 0) {
+        document.getElementById('apps-container').innerHTML = '<p>Заявок пока нет.</p>';
+        return;
+      }
+      let html = '<table><tr><th>ID</th><th>Имя</th><th>Ник</th><th>TG</th><th>Статус</th><th>Действия</th></tr>';
+      apps.forEach(app => {
+        const status = app.status === 'accepted' ? '✅ Принята' : (app.status === 'rejected' ? '❌ Отклонена' : '⏳ Ожидает');
+        html += `<tr>
+          <td>${app.id}</td>
+          <td>${app.full_name}</td>
+          <td>${app.minecraft_nick}</td>
+          <td>@${app.telegram_user || ''}</td>
+          <td>${status}</td>
+          <td>
+            <button onclick="toggleDetails(${app.id})">📋 Детали</button>
+            ${app.status === 'pending' ? `
+              <button class="btn accept" onclick="handleAction(${app.id}, 'accept')">✅ Принять</button>
+              <button class="btn reject" onclick="handleAction(${app.id}, 'reject')">❌ Отклонить</button>
+            ` : ''}
+          </td>
+        </tr>`;
+        html += `<tr id="details-${app.id}" class="hidden"><td colspan="6">
+          <div class="details">
+            <p><b>Возраст:</b> ${app.age || '-'}</p>
+            <p><b>Часовой пояс:</b> ${app.timezone || '-'}</p>
+            <p><b>Опыт на сервере:</b> ${app.modDuration || '-'}</p>
+            <p><b>Активность:</b> ${app.modTasks || '-'}</p>
+            <p><b>Готовность (часов/нед):</b> ${app.activityHours || '-'}</p>
+            <p><b>Ответы на правила:</b></p>
+            <ol>
+              ${['rule_q1','rule_q2','rule_q3','rule_q4','rule_q5','rule_q6','rule_q7','rule_q8','rule_q9','rule_q10','rule_q11','rule_q12'].map(q => `<li>${app[q] || '—'}</li>`).join('')}
+            </ol>
+            <p><b>Технические навыки:</b> ${app.techSkills || '-'}</p>
+            <p><b>Анализ логов:</b> ${app.logAnalysis || '-'}</p>
+            <p><b>Управление командой:</b> ${app.teamManagement || '-'}</p>
+            <p><b>Ситуации:</b></p>
+            <ul>
+              <li>Кража алмазов: ${app.situation1 || '-'}</li>
+              <li>Скандал кланов: ${app.situation2 || '-'}</li>
+              <li>Злоупотребление модера: ${app.situation3 || '-'}</li>
+              <li>Популярный игрок: ${app.situation4 || '-'}</li>
+            </ul>
+            <p><b>Стиль наказаний:</b> ${app.punishmentStyle || '-'}</p>
+            <p><b>Мотивация:</b> ${app.motivation || '-'}</p>
+            <p><b>Предложения:</b> ${app.suggestions || '-'}</p>
+            <p><b>Готовность уделять 15ч/нед:</b> ${app.commitment || '-'}</p>
+          </div>
+        </td></tr>`;
+      });
+      html += '</table>';
+      document.getElementById('apps-container').innerHTML = html;
+    }
+
+    function toggleDetails(id) {
+      const row = document.getElementById(`details-${id}`);
+      if (row) row.classList.toggle('hidden');
+    }
+
+    async function handleAction(id, action) {
+      if (!confirm(`Вы уверены, что хотите ${action === 'accept' ? 'принять' : 'отклонить'} заявку #${id}?`)) return;
+      const url = `${API_BASE}/api/admin/${action}`;
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: id, password: PASSWORD })
+        });
+        const result = await res.json();
+        if (res.ok) {
+          alert(result.message || 'Готово');
+          loadApps();
+        } else {
+          alert('Ошибка: ' + (result.error || 'неизвестно'));
+        }
+      } catch(e) {
+        alert('Ошибка сети');
+      }
+    }
+
+    loadApps();
+  </script>
+</body>
+</html>
+"""
 
 # ========== ХРАНИЛИЩЕ ==========
 def load_json(filename, default=None):
@@ -292,6 +418,69 @@ def reject_admin_app(call, app_id, apps):
             bot.edit_message_text(f"⚠️ Ошибка отправки: {e}", call.message.chat.id, call.message.message_id)
     except Exception as e:
         bot.edit_message_text(f"⚠️ Ошибка: {e}", call.message.chat.id, call.message.message_id)
+
+# ========== ВЕБ-АДМИНКА ==========
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "foggysecret")  # смени пароль!
+
+@app.route("/admin-panel")
+def admin_panel_web():
+    """Защищённая страница просмотра заявок"""
+    pwd = request.args.get("pwd", "")
+    if pwd != ADMIN_PASSWORD:
+        return "Доступ запрещён. Укажите правильный пароль в URL: ?pwd=...", 403
+    # Возвращаем HTML (он встроен ниже)
+    return ADMIN_PANEL_HTML
+
+# API для получения списка заявок (защищён паролем)
+@app.route("/api/admin/applications")
+def api_admin_applications():
+    pwd = request.args.get("password", "")
+    if pwd != ADMIN_PASSWORD:
+        return jsonify({"error": "unauthorized"}), 401
+    apps = load_json(ADMIN_APPS_FILE, [])
+    return jsonify(apps)
+
+# API для принятия заявки
+@app.route("/api/admin/accept", methods=["POST"])
+def api_admin_accept():
+    data = request.get_json(force=True)
+    pwd = data.get("password", "")
+    if pwd != ADMIN_PASSWORD:
+        return jsonify({"error": "unauthorized"}), 401
+    app_id = data.get("id")
+    apps = load_json(ADMIN_APPS_FILE, [])
+    app = next((a for a in apps if a["id"] == app_id), None)
+    if not app or app["status"] != "pending":
+        return jsonify({"error": "not found or already processed"}), 404
+    app["status"] = "accepted"
+    save_json(ADMIN_APPS_FILE, apps)
+    try:
+        bot.send_message(app["chat_id"],
+                         f"Привет {app['full_name']}!\nТвоя заявка на администратора одобрена! Поздравляем!")
+        return jsonify({"status": "ok", "message": "Уведомление отправлено"})
+    except Exception as e:
+        return jsonify({"status": "ok", "warning": f"Не удалось отправить уведомление: {e}"})
+
+# API для отклонения заявки
+@app.route("/api/admin/reject", methods=["POST"])
+def api_admin_reject():
+    data = request.get_json(force=True)
+    pwd = data.get("password", "")
+    if pwd != ADMIN_PASSWORD:
+        return jsonify({"error": "unauthorized"}), 401
+    app_id = data.get("id")
+    apps = load_json(ADMIN_APPS_FILE, [])
+    app = next((a for a in apps if a["id"] == app_id), None)
+    if not app or app["status"] != "pending":
+        return jsonify({"error": "not found or already processed"}), 404
+    app["status"] = "rejected"
+    save_json(ADMIN_APPS_FILE, apps)
+    try:
+        bot.send_message(app["chat_id"],
+                         f"Привет {app['full_name']}. К сожалению, твоя заявка на администратора не прошла. Ты можешь подать повторно через 2 недели.")
+        return jsonify({"status": "ok", "message": "Уведомление отправлено"})
+    except Exception as e:
+        return jsonify({"status": "ok", "warning": f"Не удалось отправить уведомление: {e}"})
 
 # ========== ЗАПУСК ==========
 if __name__ == "__main__":
