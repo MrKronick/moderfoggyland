@@ -192,10 +192,31 @@ def show_ml_list(call, apps):
 
 def show_ml_detail(call, app):
     status = "✅ Принята" if app["status"] == "accepted" else "❌ Отклонена" if app["status"] == "rejected" else "⏳ Ожидает"
-    text = f"🛡️ Заявка #{app['id']}\n\n👤 {app['real_name']}\n⛏ {app['minecraft_nick']}\n📬 @{app.get('telegram_user','')}\n🎂 {app.get('age','')}\n📊 {status}\n🤝 {'Да' if app.get('agreement')=='yes' else 'Нет'}\n\n🛠 {app.get('experience','—')}\n💬 {app.get('motivation','—')}"
+    text = (
+        f"🛡️ Заявка на мл. модератора #{app['id']}\n\n"
+        f"👤 Имя: {app['real_name']}\n"
+        f"⛏ Ник: {app['minecraft_nick']}\n"
+        f"📬 Telegram: @{app.get('telegram_user','')}\n"
+        f"🎂 Возраст: {app.get('age','')}\n"
+        f"📊 Статус: {status}\n"
+        f"🤝 Согласие с правилами: {'Да' if app.get('agreement') == 'yes' else 'Нет'}\n\n"
+        f"🛠 Опыт: {app.get('experience','—')}\n"
+        f"💬 Мотивация: {app.get('motivation','—')}\n\n"
+        f"📜 Ответы на правила:\n"
+        f"1. Читы (6.1): {app.get('rule_6_1','—')}\n"
+        f"2. Гриферство (8.1): {app.get('rule_8_1','—')}\n"
+        f"3. Оскорбления (2.1): {app.get('rule_2_1','—')}\n"
+        f"4. Администраторам (3.2): {app.get('rule_3_2','—')}\n"
+        f"5. Чужая территория (9.3): {app.get('rule_9_3','—')}\n"
+        f"6. Спам/флуд (2.2-2.3): {app.get('rule_2_2_2_3','—')}\n"
+        f"7. Обход бана (8.5): {app.get('rule_8_5','—')}"
+    )
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     if app["status"] == "pending":
-        keyboard.add(types.InlineKeyboardButton("✅ Принять", callback_data=f"ml_accept_{app['id']}"), types.InlineKeyboardButton("❌ Отклонить", callback_data=f"ml_reject_{app['id']}"))
+        keyboard.add(
+            types.InlineKeyboardButton("✅ Принять", callback_data=f"ml_accept_{app['id']}"),
+            types.InlineKeyboardButton("❌ Отклонить", callback_data=f"ml_reject_{app['id']}")
+        )
     keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data="list_ml_moderator"))
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
 
