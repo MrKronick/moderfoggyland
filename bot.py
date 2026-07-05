@@ -6,8 +6,7 @@ import telebot
 from telebot import types
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-if not TELEGRAM_TOKEN:
-    raise ValueError("TELEGRAM_TOKEN не установлен!")
+if not TELEGRAM_TOKEN: raise ValueError("TELEGRAM_TOKEN не установлен!")
 
 ADMIN_IDS = [5145474067]
 ADMIN_USERNAME = "MrKronick"
@@ -33,39 +32,30 @@ CORS(app)
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
 @app.route("/")
-def home():
-    return "✅ Бот работает!"
+def home(): return "✅ Бот работает!"
 
 @app.route("/ml-moderator-webhook", methods=["POST"])
 def ml_moderator_webhook():
     data = request.get_json(force=True) if request.is_json else request.form
     code = data.get("verification_code", "").strip().upper()
     pending = load_json(PENDING_CODES_FILE)
-    if not code or code not in pending:
-        return jsonify({"error": "Неверный код подтверждения"}), 400
-
+    if not code or code not in pending: return jsonify({"error": "Неверный код"}), 400
     chat_id = pending.pop(code)
     save_json(PENDING_CODES_FILE, pending)
-
     apps = load_json(DATA_FILE, [])
     new_app = {
-        "id": len(apps) + 1, "chat_id": chat_id,
-        "real_name": data.get("real_name", "Игрок"),
-        "minecraft_nick": data.get("minecraft_nick", ""),
-        "telegram_user": data.get("telegram", ""),
-        "age": data.get("age", ""),
-        "experience": data.get("experience", ""),
+        "id": len(apps) + 1, "chat_id": chat_id, "real_name": data.get("real_name", "Игрок"),
+        "minecraft_nick": data.get("minecraft_nick", ""), "telegram_user": data.get("telegram", ""),
+        "age": data.get("age", ""), "experience": data.get("experience", ""),
         "motivation": data.get("motivation", ""),
         "rule_6_1": data.get("rule_6_1", ""), "rule_8_1": data.get("rule_8_1", ""),
         "rule_2_1": data.get("rule_2_1", ""), "rule_3_2": data.get("rule_3_2", ""),
         "rule_9_3": data.get("rule_9_3", ""), "rule_2_2_2_3": data.get("rule_2_2_2_3", ""),
-        "rule_8_5": data.get("rule_8_5", ""),
-        "agreement": data.get("agreement", "no"),
+        "rule_8_5": data.get("rule_8_5", ""), "agreement": data.get("agreement", "no"),
         "status": "pending", "submitted_at": datetime.now().isoformat(), "renamed_in_group": False
     }
     apps.append(new_app)
     save_json(DATA_FILE, apps)
-
     try: bot.send_message(chat_id, f"Привет {new_app['real_name']}! Твоя заявка на мл. модератора принята и будет рассмотрена в течение 3-5 дней. Ожидай.")
     except: pass
     for admin_id in ADMIN_IDS:
@@ -110,7 +100,7 @@ def button_help(message):
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
     if not is_admin(user_id=message.from_user.id, username=message.from_user.username):
-        bot.reply_to(message, "⛔ У вас нет доступа к этой команде."); return
+        bot.reply_to(message, "⛔ Нет доступа."); return
     keyboard = types.InlineKeyboardMarkup(row_width=1)
     keyboard.add(types.InlineKeyboardButton("🛡️ Заявки на мл. модератора", callback_data="list_ml_moderator"))
     bot.send_message(message.chat.id, "🎛 Админ-панель FoggyLand", reply_markup=keyboard)
@@ -128,10 +118,6 @@ def change_tag(message):
         if not target_user: bot.reply_to(message, f"❌ Пользователь @{target_username} не найден."); return
         bot.set_chat_administrator_custom_title(chat_id=STAFF_GROUP_ID, user_id=target_user.id, custom_title=new_tag)
         bot.reply_to(message, f"✅ Тег для @{target_username} изменён на: **{new_tag}**", parse_mode="Markdown")
-        apps = load_json(DATA_FILE, [])
-        for app in apps:
-            if app.get("chat_id") == target_user.id: app["minecraft_nick"], app["group_nickname"] = new_tag, new_tag
-        save_json(DATA_FILE, apps)
     except Exception as e: bot.reply_to(message, f"❌ Ошибка: {e}")
 
 @bot.message_handler(content_types=['new_chat_members'])
@@ -189,28 +175,60 @@ def show_ml_detail(call, app):
 
 def accept_ml_app(call, app_id, apps):
     app = next((a for a in apps if a["id"] == app_id), None)
-    if not app or app["status"] != "pending": bot.edit_message_text("❌ Заявка не найдена или уже обработана.", call.message.chat.id, call.message.message_id); return
+    if not app or app["status"] != "pending":
+        bot.edit_message_text("❌ Заявка не найдена или уже обработана.", call.message.chat.id, call.message.message_id)
+        return
+
     app["status"] = "accepted"
     chat_id, user_nick = app["chat_id"], app.get("minecraft_nick", "игрок")
+
+    # ----- Прямое добавление в группу -----
     added = False
     try:
+        # Попытка добавить пользователя напрямую (требуются права администратора с Add Users)
         bot.add_chat_member(chat_id=STAFF_GROUP_ID, user_id=chat_id)
         added = True
         bot.send_message(chat_id, "✅ Ты был автоматически добавлен в группу модераторов FoggyLand!")
-    except:
+        print(f"[OK] Пользователь {chat_id} добавлен напрямую.")
+    except Exception as e:
+        print(f"[ERROR] add_chat_member не сработал: {e}")
+        # Если не получилось – создаём одноразовую ссылку
         try:
-            invite = bot.create_chat_invite_link(chat_id=STAFF_GROUP_ID, member_limit=1, name=f"Приглашение для {user_nick}")
-            bot.send_message(chat_id, f"🎉 Поздравляю, {app['real_name']}!\n\nТвоя заявка на мл. модератора одобрена!\nЧтобы присоединиться к команде, перейди по ссылке:\n\n🔗 {invite.invite_link}\n\nПосле входа представься: ник {user_nick}, роль — мл. модератор.", disable_web_page_preview=True)
-        except: bot.send_message(chat_id, "⚠️ Не удалось добавить в группу. Администратор добавит вас вручную.")
+            invite = bot.create_chat_invite_link(
+                chat_id=STAFF_GROUP_ID,
+                member_limit=1,
+                name=f"Приглашение для {user_nick}"
+            )
+            bot.send_message(chat_id,
+                f"🎉 Поздравляю, {app['real_name']}!\n\n"
+                f"Твоя заявка на мл. модератора одобрена!\n"
+                f"Чтобы присоединиться к команде, перейди по ссылке:\n\n"
+                f"🔗 {invite.invite_link}\n\n"
+                f"После входа тебе автоматически будет выдан тег.",
+                disable_web_page_preview=True)
+            print(f"[OK] Отправлена ссылка-приглашение для {chat_id}")
+        except Exception as e2:
+            print(f"[ERROR] Не удалось создать ссылку: {e2}")
+            bot.send_message(chat_id, "⚠️ Не удалось добавить в группу. Администратор добавит вас вручную.")
+
+    # Уведомление в группу
     if added:
-        try: bot.send_message(STAFF_GROUP_ID, f"👋 Новый мл. модератор **{user_nick}** присоединился!", parse_mode="Markdown")
+        try:
+            bot.send_message(STAFF_GROUP_ID, f"👋 Новый мл. модератор **{user_nick}** только что присоединился!", parse_mode="Markdown")
         except: pass
+    else:
+        try:
+            bot.send_message(STAFF_GROUP_ID, f"👋 Новый мл. модератор **{user_nick}** скоро присоединится по приглашению.", parse_mode="Markdown")
+        except: pass
+
     save_json(DATA_FILE, apps)
     bot.edit_message_text(f"✅ Заявка #{app_id} принята!", call.message.chat.id, call.message.message_id)
 
 def reject_ml_app(call, app_id, apps):
     app = next((a for a in apps if a["id"] == app_id), None)
-    if not app or app["status"] != "pending": bot.edit_message_text("❌ Заявка не найдена или уже обработана.", call.message.chat.id, call.message.message_id); return
+    if not app or app["status"] != "pending":
+        bot.edit_message_text("❌ Заявка не найдена или уже обработана.", call.message.chat.id, call.message.message_id)
+        return
     app["status"] = "rejected"
     save_json(DATA_FILE, apps)
     try: bot.send_message(app["chat_id"], f"Привет {app['real_name']}. К сожалению, твоя заявка на мл. модератора не прошла. Можешь подать повторно через 7 дней.")
@@ -221,4 +239,5 @@ if __name__ == "__main__":
     try: bot.remove_webhook()
     except: pass
     bot.set_webhook(url=f"{RENDER_URL}/telegram")
+    print(f"Бот запущен. Группа: {STAFF_GROUP_ID}, Админ: {ADMIN_IDS}")
     app.run(host="0.0.0.0", port=PORT)
