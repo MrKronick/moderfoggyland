@@ -18,6 +18,10 @@ PENDING_CODES_FILE = "pending_codes.json"
 PORT = int(os.environ.get("PORT", 10000))
 RENDER_URL = "https://moderfoggyland.onrender.com"   # ❗ свой Render URL
 
+# Переменные для группы (установи их в Render)
+STAFF_GROUP_ID = os.environ.get("STAFF_GROUP_ID", "-1003682731952")  # ❗ ID группы
+STAFF_INVITE_LINK = os.environ.get("STAFF_INVITE_LINK", "https://t.me/+mgRGzcfEHfE4YWUy")  # ❗ ссылка
+
 # ========== ХРАНИЛИЩЕ ==========
 def load_json(filename, default=None):
     if default is None:
@@ -60,7 +64,6 @@ def ml_moderator_webhook():
     motivation = data.get("motivation", "")
     agreement = data.get("agreement", "no")
 
-    # Сохраняем заявку
     apps = load_json(DATA_FILE, [])
     new_app = {
         "id": len(apps) + 1,
@@ -85,14 +88,12 @@ def ml_moderator_webhook():
     apps.append(new_app)
     save_json(DATA_FILE, apps)
 
-    # Уведомление заявителю
     try:
         bot.send_message(chat_id,
                          f"Привет {real_name}! Твоя заявка на мл. модератора принята и будет рассмотрена в течение 3-5 дней. Ожидай.")
     except Exception as e:
         print(f"Ошибка отправки заявителю: {e}")
 
-    # Уведомление админам
     for admin_id in ADMIN_IDS:
         try:
             bot.send_message(admin_id,
@@ -253,14 +254,58 @@ def accept_ml_app(call, app_id, apps):
     if not app or app["status"] != "pending":
         bot.edit_message_text("❌ Заявка не найдена или уже обработана.", call.message.chat.id, call.message.message_id)
         return
+
     app["status"] = "accepted"
-    save_json(DATA_FILE, apps)
+
+    # ---------- АВТОМАТИЧЕСКОЕ ДОБАВЛЕНИЕ В ГРУППУ ----------
+    group_id = STAFF_GROUP_ID
+    invite_link = STAFF_INVITE_LINK
+    chat_id = app["chat_id"]
+    user_nick = app.get("minecraft_nick", "игрок")
+
+    # Создаём одноразовую ссылку-приглашение
     try:
-        bot.send_message(app["chat_id"],
-                         f"Привет {app['real_name']}!\nТвоя заявка на мл. модератора одобрена! Свяжись с администрацией для дальнейших инструкций.")
-        bot.edit_message_text(f"✅ Заявка #{app_id} принята! Уведомление отправлено.", call.message.chat.id, call.message.message_id)
+        invite = bot.create_chat_invite_link(
+            chat_id=group_id,
+            member_limit=1,
+            name=f"Приглашение для {user_nick}"
+        )
+        personal_link = invite.invite_link
     except Exception as e:
-        bot.edit_message_text(f"⚠️ Ошибка отправки: {e}", call.message.chat.id, call.message.message_id)
+        print(f"Не удалось создать ссылку приглашения: {e}")
+        personal_link = invite_link
+
+    # Отправляем кандидату приглашение и инструкцию
+    try:
+        bot.send_message(
+            chat_id=chat_id,
+            text=(
+                f"🎉 Поздравляю, {app['real_name']}!\n\n"
+                f"Твоя заявка на мл. модератора одобрена!\n"
+                f"Чтобы присоединиться к команде, перейди по ссылке ниже.\n\n"
+                f"🔗 {personal_link}\n\n"
+                f"После входа представься: ник {user_nick}, роль — мл. модератор."
+            ),
+            disable_web_page_preview=True
+        )
+    except Exception as e:
+        print(f"Не удалось отправить сообщение кандидату: {e}")
+
+    # Уведомление в группу о новом участнике
+    try:
+        bot.send_message(
+            chat_id=group_id,
+            text=f"👋 Приветствуем нового мл. модератора: **{user_nick}**!\nОн должен присоединиться в ближайшее время.",
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        print(f"Не удалось отправить сообщение в группу: {e}")
+
+    app["invite_link"] = personal_link
+    save_json(DATA_FILE, apps)
+    # ---------- КОНЕЦ ДОБАВЛЕНИЯ ----------
+
+    bot.edit_message_text(f"✅ Заявка #{app_id} принята! Приглашение отправлено.", call.message.chat.id, call.message.message_id)
 
 def reject_ml_app(call, app_id, apps):
     app = next((a for a in apps if a["id"] == app_id), None)
