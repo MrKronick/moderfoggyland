@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>🌫️ FoggyLand | Заявка на Администратора</title>
+  <title>🌫️ FoggyLand | Заявка на Мл. Модератора</title>
   <style>
     * {
       margin: 0;
@@ -23,7 +23,7 @@
       overflow-x: hidden;
     }
 
-    /* ── Живой туманный фон ── */
+    /* ── Анимированный туманный фон ── */
     .fog-background {
       position: fixed;
       top: 0;
@@ -91,11 +91,12 @@
       padding: 2.5rem 2.2rem;
       box-shadow: 0 35px 60px -20px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(110, 150, 90, 0.35);
       border: 1px solid rgba(100, 140, 70, 0.3);
-      transition: box-shadow 0.4s;
+      transition: box-shadow 0.4s, border-color 0.4s;
     }
 
     .application-card:hover {
       box-shadow: 0 40px 65px -15px rgba(20, 30, 5, 0.8), 0 0 0 1px rgba(140, 190, 80, 0.5);
+      border-color: rgba(140, 190, 80, 0.6);
     }
 
     h1 {
@@ -206,33 +207,6 @@
       flex: 1 1 180px;
     }
 
-    .checkbox-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      margin-top: 0.4rem;
-    }
-
-    .checkbox-item {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      background: rgba(30, 45, 25, 0.7);
-      padding: 0.3rem 0.9rem;
-      border-radius: 2rem;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .checkbox-item:hover {
-      background: rgba(60, 90, 40, 0.7);
-    }
-
-    .checkbox-item input[type="radio"] {
-      width: auto;
-      accent-color: #7bb85a;
-    }
-
     button {
       width: 100%;
       padding: 1rem;
@@ -259,6 +233,20 @@
       background: linear-gradient(135deg, #346a29, #4f9e42);
       transform: scale(0.98);
       border-color: #7fc067;
+    }
+
+    .rules-link {
+      display: inline-block;
+      margin-bottom: 1rem;
+      color: #9bc17a;
+      text-decoration: none;
+      font-weight: 600;
+      border-bottom: 2px dashed #9bc17a;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .rules-link:hover {
+      color: #c7e6b5;
+      border-color: #c7e6b5;
     }
 
     .success-message {
@@ -288,12 +276,6 @@
       padding-top: 1.3rem;
     }
 
-    hr {
-      border-color: #2f4827;
-      margin: 1.2rem 0;
-      opacity: 0.6;
-    }
-
     @media (max-width: 600px) {
       .application-card { padding: 1.8rem 1.2rem; }
       h1 { font-size: 2rem; }
@@ -316,193 +298,99 @@
       <span>🌲</span> FoggyLand <span>🌫️</span>
     </h1>
     <div class="subtitle">
-      <span>👑</span> Заявка на Администратора <span>✨</span>
+      <span>🛡️</span> Заявка на Мл. Модератора <span>✨</span>
     </div>
 
-    <form id="adminApplicationForm">
-      <!-- Секция 1: Личная информация -->
+    <form id="moderatorForm">
+      <!-- Личные данные -->
       <div class="form-section">
         <div class="section-title"><span>📋</span> 1. Личные данные</div>
         <div class="row">
           <div class="form-group">
-            <label>🧑 Имя и фамилия</label>
-            <input type="text" name="fullName" placeholder="Алексей Иванов" required autocomplete="name" maxlength="40">
+            <label>🧑 Реальное имя</label>
+            <input type="text" name="real_name" placeholder="Александр" required maxlength="15">
           </div>
           <div class="form-group">
             <label>⛏️ Никнейм Minecraft</label>
-            <input type="text" name="minecraftNick" placeholder="MrKronick" required maxlength="28">
+            <input type="text" name="minecraft_nick" placeholder="MrKronick" required maxlength="28">
           </div>
         </div>
         <div class="row">
           <div class="form-group">
-            <label>📅 Возраст</label>
-            <select name="age" required>
-              <option value="" disabled selected>Выберите возраст</option>
-              <option value="14">14</option>
-              <option value="15">15</option>
-              <option value="16">16</option>
-              <option value="17">17</option>
-              <option value="18-24">18-24</option>
-              <option value="25-30">25-30</option>
-              <option value="30+">30+</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>📬 Telegram</label>
+            <label>📬 Telegram (username)</label>
             <input type="text" name="telegram" placeholder="@foggyland" required maxlength="30">
           </div>
-        </div>
-        <div class="form-group">
-          <label>🌍 Часовой пояс / страна</label>
-          <input type="text" name="timezone" placeholder="МСК (UTC+3)" required>
-        </div>
-      </div>
-
-      <!-- Секция 2: Опыт на сервере -->
-      <div class="form-section">
-        <div class="section-title"><span>⚡</span> 2. Опыт на сервере</div>
-        <div class="form-group">
-          <label>📆 Как долго вы играете на FoggyLand?</label>
-          <input type="text" name="modDuration" placeholder="3 месяца, с января 2026" required>
-        </div>
-        <div class="form-group">
-          <label>🔨 Какую активность вы проявляли на сервере? (помощь игрокам, участие в жизни сообщества)</label>
-          <textarea name="modTasks" placeholder="Помогал новичкам, строил спавн..." required></textarea>
-        </div>
-        <div class="form-group">
-          <label>📊 Сколько часов в неделю вы готовы уделять администрированию?</label>
-          <select name="activityHours" required>
-            <option value="" disabled selected>Выберите...</option>
-            <option value="5-10">5-10 часов</option>
-            <option value="10-20">10-20 часов</option>
-            <option value="20-35">20-35 часов</option>
-            <option value="35+">35+ часов</option>
-          </select>
+          <div class="form-group">
+            <label>🎂 Возраст</label>
+            <select name="age" required>
+              <option value="" disabled selected>Выберите возраст</option>
+              <option value="13">13</option><option value="14">14</option><option value="15">15</option>
+              <option value="16">16</option><option value="17">17</option><option value="18-24">18-24</option>
+              <option value="25+">25+</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      <!-- Секция 3: Знание правил (обновлённые ссылки) -->
+      <!-- Опыт -->
       <div class="form-section">
-        <div class="section-title"><span>📜</span> 3. Тест на знание правил сервера</div>
+        <div class="section-title"><span>⚡</span> 2. Опыт и мотивация</div>
+        <div class="form-group">
+          <label>🛡️ Опыт модерирования / администрирования</label>
+          <textarea name="experience" placeholder="Опишите, были ли вы модератором на других проектах, что умеете..." maxlength="100"></textarea>
+        </div>
+        <div class="form-group">
+          <label>💬 Почему вы хотите стать младшим модератором FoggyLand?</label>
+          <textarea name="motivation" placeholder="Расскажите, почему выбрали наш сервер и что можете дать сообществу..." required maxlength="200"></textarea>
+        </div>
+      </div>
+
+      <!-- Знание правил (выборочные вопросы) -->
+      <div class="form-section">
+        <div class="section-title"><span>📜</span> 3. Тест на знание правил</div>
         <p style="color:#b4cf9e; margin-bottom:1rem; font-size:0.9rem;">
-          Ознакомьтесь с правилами: <a href="https://rules.foggyland.ru" target="_blank" style="color:#9bc17a;">rules.foggyland.ru</a><br>
-          Ответьте развёрнуто, опираясь на правила.
+          <a href="https://rules.foggyland.ru" target="_blank" class="rules-link">📖 Открыть правила сервера</a><br>
+          Ответьте развёрнуто, опираясь на правила FoggyLand.
         </p>
 
         <div class="form-group">
-          <label>❓ 1. Какое наказание за использование читов / чит-клиентов?</label>
-          <textarea name="rule_q1" placeholder="Согласно правилам..." required></textarea>
+          <label>❓ 1. Какое наказание за использование читов / чит-клиентов? (п. 6.1)</label>
+          <textarea name="rule_6_1" placeholder="Согласно правилам..." required></textarea>
         </div>
         <div class="form-group">
-          <label>❓ 2. Что грозит за массовый гриферинг и разбойные нападения?</label>
-          <textarea name="rule_q2" required></textarea>
+          <label>❓ 2. Что грозит за гриферство чужой постройки? (п. 8.1)</label>
+          <textarea name="rule_8_1" required></textarea>
         </div>
         <div class="form-group">
-          <label>❓ 3. Как наказывается дюп предметов (не ТНТ)?</label>
-          <textarea name="rule_q3" required></textarea>
+          <label>❓ 3. Какое наказание за оскорбления в чате? (п. 2.1)</label>
+          <textarea name="rule_2_1" required></textarea>
         </div>
         <div class="form-group">
-          <label>❓ 4. Разрешено ли использование твинков (вторых аккаунтов)?</label>
-          <textarea name="rule_q4" required></textarea>
+          <label>❓ 4. Что запрещено администраторам согласно п. 3.2?</label>
+          <textarea name="rule_3_2" required></textarea>
         </div>
         <div class="form-group">
-          <label>❓ 5. Можно ли продавать игровые ресурсы за реальные деньги?</label>
-          <textarea name="rule_q5" required></textarea>
+          <label>❓ 5. Можно ли заходить на чужую территорию без разрешения? (п. 9.3)</label>
+          <textarea name="rule_9_3" required></textarea>
         </div>
         <div class="form-group">
-          <label>❓ 6. Опишите наказания за PvP без согласия</label>
-          <textarea name="rule_q6" placeholder="Упомяните разные случаи..." required></textarea>
+          <label>❓ 6. Какое наказание за спам и флуд в чате? (п. 2.2, 2.3)</label>
+          <textarea name="rule_2_2_2_3" required></textarea>
         </div>
         <div class="form-group">
-          <label>❓ 7. Что считается помехой работе администрации?</label>
-          <textarea name="rule_q7" required></textarea>
-        </div>
-        <div class="form-group">
-          <label>❓ 8. Какое наказание за спам и злоупотребление капсом?</label>
-          <textarea name="rule_q8" required></textarea>
-        </div>
-        <div class="form-group">
-          <label>❓ 9. Что грозит за оскорбления личности и провокации?</label>
-          <textarea name="rule_q9" required></textarea>
-        </div>
-        <div class="form-group">
-          <label>❓ 10. Разрешена ли реклама сторонних серверов?</label>
-          <textarea name="rule_q10" required></textarea>
-        </div>
-        <div class="form-group">
-          <label>❓ 11. Как следует поступить, если игрок намеренно создаёт лаги (лаг-машина)?</label>
-          <textarea name="rule_q11" required></textarea>
-        </div>
-        <div class="form-group">
-          <label>❓ 12. Можно ли разглашать сид мира?</label>
-          <textarea name="rule_q12" required></textarea>
+          <label>❓ 7. Разрешено ли обходить бан? (п. 8.5)</label>
+          <textarea name="rule_8_5" required></textarea>
         </div>
       </div>
 
-      <!-- Секция 4: Технические навыки -->
+      <!-- Согласие -->
       <div class="form-section">
-        <div class="section-title"><span>⚙️</span> 4. Технические и административные навыки</div>
+        <div class="section-title"><span>🤝</span> 4. Согласие</div>
         <div class="form-group">
-          <label>🖥️ Знакомы ли вы с консолью сервера, плагинами (Essentials, CoreProtect)?</label>
-          <textarea name="techSkills" placeholder="Опишите ваш опыт..."></textarea>
-        </div>
-        <div class="form-group">
-          <label>📂 Умеете ли вы анализировать логи, находить причины лагов?</label>
-          <select name="logAnalysis" required>
-            <option value="" disabled selected>Выберите...</option>
-            <option value="yes">Да, имею опыт</option>
-            <option value="basic">Базовые знания</option>
-            <option value="no">Нет, но готов учиться</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>🗂️ Как вы организуете работу команды модераторов? (делегирование, график)</label>
-          <textarea name="teamManagement" placeholder="Ваш подход..."></textarea>
-        </div>
-      </div>
-
-      <!-- Секция 5: Решение конфликтов -->
-      <div class="form-section">
-        <div class="section-title"><span>🧩</span> 5. Решение конфликтных ситуаций</div>
-        <div class="form-group">
-          <label>🎯 Игрок А обвиняет игрока Б в краже алмазов. Ваши действия?</label>
-          <textarea name="situation1" required></textarea>
-        </div>
-        <div class="form-group">
-          <label>🔥 В чате разгорается скандал между двумя кланами. Как вы погасите конфликт?</label>
-          <textarea name="situation2" required></textarea>
-        </div>
-        <div class="form-group">
-          <label>🕵️ Вы обнаружили, что модератор злоупотребляет полномочиями. Что предпримете?</label>
-          <textarea name="situation3" required></textarea>
-        </div>
-        <div class="form-group">
-          <label>📢 Как вы поступите, если популярный игрок нарушает правила, но сообщество за него заступается?</label>
-          <textarea name="situation4" required></textarea>
-        </div>
-        <div class="form-group">
-          <label>⏳ Опишите ваш подход к выдаче наказаний: гибкость или строгость? Примеры.</label>
-          <textarea name="punishmentStyle" required></textarea>
-        </div>
-      </div>
-
-      <!-- Секция 6: Мотивация -->
-      <div class="form-section">
-        <div class="section-title"><span>💎</span> 6. Мотивация и видение</div>
-        <div class="form-group">
-          <label>🌟 Почему вы хотите стать администратором FoggyLand?</label>
-          <textarea name="motivation" placeholder="Расскажите, что вас вдохновляет..." required></textarea>
-        </div>
-        <div class="form-group">
-          <label>🔮 Какие улучшения вы бы предложили для сервера в роли администратора?</label>
-          <textarea name="suggestions" required></textarea>
-        </div>
-        <div class="form-group">
-          <label>🤝 Готовы ли вы уделять серверу не менее 15 часов в неделю?</label>
-          <div class="checkbox-group">
-            <label class="checkbox-item"><input type="radio" name="commitment" value="yes" required> ✅ Да, готов(а)</label>
-            <label class="checkbox-item"><input type="radio" name="commitment" value="maybe"> ⚠️ Зависит от обстоятельств</label>
-          </div>
+          <label>
+            <input type="checkbox" name="agreement" value="yes" required style="width: auto; margin-right: 0.5rem;">
+            Я согласен(на) с правилами сервера и обязуюсь им следовать
+          </label>
         </div>
       </div>
 
@@ -515,9 +403,6 @@
         </small>
       </div>
 
-      <input type="hidden" name="form_type" value="admin_application">
-      <input type="hidden" name="timestamp" id="timestampInput">
-
       <button type="submit">
         <span>🍃</span> Отправить заявку <span>🍃</span>
       </button>
@@ -526,7 +411,7 @@
     <div id="successBlock" class="success-message hidden">
       <span style="font-size: 2rem;">🎉</span>
       <strong>Заявка отправлена!</strong>
-      <span>Администрация FoggyLand рассмотрит её в течение 5–7 дней.</span>
+      <span>Мы рассмотрим её в течение 3–5 дней.</span>
       <span style="font-size: 0.9rem; opacity:0.9;">Ожидайте ответа в Telegram (не блокируйте бота).</span>
     </div>
 
@@ -539,16 +424,11 @@
 
 <script>
   (function() {
-    const form = document.getElementById('adminApplicationForm');
+    const form = document.getElementById('moderatorForm');
     const successDiv = document.getElementById('successBlock');
-    const timestampInput = document.getElementById('timestampInput');
-
-    if (timestampInput) {
-      timestampInput.value = new Date().toISOString();
-    }
 
     // ❗ Замени на свой Render URL
-    const WEBHOOK_URL = 'https://moderfoggyland.onrender.com/admin-webhook';
+    const WEBHOOK_URL = 'https://moderfoggyland.onrender.com/ml-moderator-webhook';
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -559,56 +439,43 @@
         return;
       }
 
-      // Проверка лимитов символов для ключевых полей
+      // Проверка лимитов символов
       const limits = {
-        fullName: 40,
-        minecraftNick: 28,
+        real_name: 15,
+        minecraft_nick: 28,
         telegram: 30,
+        experience: 100,
+        motivation: 200,
         verification_code: 9
       };
       for (const [fieldName, maxLen] of Object.entries(limits)) {
         const field = form.querySelector(`[name="${fieldName}"]`);
         if (field && field.value.length > maxLen) {
-          alert(`⚠️ Поле "${fieldName}" превышает максимум в ${maxLen} символов!`);
+          const label = field.closest('.form-group')?.querySelector('label')?.textContent || fieldName;
+          alert(`⚠️ Поле "${label.replace(/[^a-zA-Zа-яА-ЯёЁ\s]/g, '').trim()}" превышает максимум в ${maxLen} символов!`);
           field.focus();
           return;
         }
       }
 
-      // Собираем все данные в объект
+      // Собираем данные
       const data = {
         verification_code: form.querySelector('[name="verification_code"]').value.trim(),
-        fullName: form.querySelector('[name="fullName"]').value.trim(),
-        minecraftNick: form.querySelector('[name="minecraftNick"]').value.trim(),
-        age: ageSelect ? ageSelect.value : '',
+        real_name: form.querySelector('[name="real_name"]').value.trim(),
+        minecraft_nick: form.querySelector('[name="minecraft_nick"]').value.trim(),
         telegram: form.querySelector('[name="telegram"]').value.trim(),
-        timezone: form.querySelector('[name="timezone"]').value.trim(),
-        modDuration: form.querySelector('[name="modDuration"]').value.trim(),
-        modTasks: form.querySelector('[name="modTasks"]').value.trim(),
-        activityHours: form.querySelector('[name="activityHours"]').value,
-        rule_q1: form.querySelector('[name="rule_q1"]').value.trim(),
-        rule_q2: form.querySelector('[name="rule_q2"]').value.trim(),
-        rule_q3: form.querySelector('[name="rule_q3"]').value.trim(),
-        rule_q4: form.querySelector('[name="rule_q4"]').value.trim(),
-        rule_q5: form.querySelector('[name="rule_q5"]').value.trim(),
-        rule_q6: form.querySelector('[name="rule_q6"]').value.trim(),
-        rule_q7: form.querySelector('[name="rule_q7"]').value.trim(),
-        rule_q8: form.querySelector('[name="rule_q8"]').value.trim(),
-        rule_q9: form.querySelector('[name="rule_q9"]').value.trim(),
-        rule_q10: form.querySelector('[name="rule_q10"]').value.trim(),
-        rule_q11: form.querySelector('[name="rule_q11"]').value.trim(),
-        rule_q12: form.querySelector('[name="rule_q12"]').value.trim(),
-        techSkills: form.querySelector('[name="techSkills"]').value.trim(),
-        logAnalysis: form.querySelector('[name="logAnalysis"]').value,
-        teamManagement: form.querySelector('[name="teamManagement"]').value.trim(),
-        situation1: form.querySelector('[name="situation1"]').value.trim(),
-        situation2: form.querySelector('[name="situation2"]').value.trim(),
-        situation3: form.querySelector('[name="situation3"]').value.trim(),
-        situation4: form.querySelector('[name="situation4"]').value.trim(),
-        punishmentStyle: form.querySelector('[name="punishmentStyle"]').value.trim(),
+        age: ageSelect ? ageSelect.value : '',
+        experience: form.querySelector('[name="experience"]').value.trim(),
         motivation: form.querySelector('[name="motivation"]').value.trim(),
-        suggestions: form.querySelector('[name="suggestions"]').value.trim(),
-        commitment: form.querySelector('[name="commitment"]:checked')?.value || '',
+        rule_6_1: form.querySelector('[name="rule_6_1"]').value.trim(),
+        rule_8_1: form.querySelector('[name="rule_8_1"]').value.trim(),
+        rule_2_1: form.querySelector('[name="rule_2_1"]').value.trim(),
+        rule_3_2: form.querySelector('[name="rule_3_2"]').value.trim(),
+        rule_9_3: form.querySelector('[name="rule_9_3"]').value.trim(),
+        rule_2_2_2_3: form.querySelector('[name="rule_2_2_2_3"]').value.trim(),
+        rule_8_5: form.querySelector('[name="rule_8_5"]').value.trim(),
+        agreement: form.querySelector('[name="agreement"]')?.checked ? 'yes' : 'no',
+        form_type: 'ml_moderator',
         submitted_at: new Date().toISOString()
       };
 
