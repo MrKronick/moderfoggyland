@@ -39,7 +39,9 @@ def ml_moderator_webhook():
     data = request.get_json(force=True) if request.is_json else request.form
     code = data.get("verification_code", "").strip().upper()
     pending = load_json(PENDING_CODES_FILE)
-    if not code or code not in pending: return jsonify({"error": "Неверный код"}), 400
+    if not code or code not in pending:
+        print("[ERROR] Неверный код подтверждения:", code)
+        return jsonify({"error": "Неверный код"}), 400
     chat_id = pending.pop(code)
     save_json(PENDING_CODES_FILE, pending)
     apps = load_json(DATA_FILE, [])
@@ -57,10 +59,10 @@ def ml_moderator_webhook():
     apps.append(new_app)
     save_json(DATA_FILE, apps)
     try: bot.send_message(chat_id, f"Привет {new_app['real_name']}! Твоя заявка на мл. модератора принята и будет рассмотрена в течение 3-5 дней. Ожидай.")
-    except: pass
+    except Exception as e: print(f"[ERROR] Отправка заявителю: {e}")
     for admin_id in ADMIN_IDS:
         try: bot.send_message(admin_id, f"🆕 Заявка на мл. модератора #{new_app['id']} от {new_app['real_name']}\nНик: {new_app['minecraft_nick']}\nTG: @{new_app.get('telegram_user','')}")
-        except: pass
+        except Exception as e: print(f"[ERROR] Отправка админу: {e}")
     return jsonify({"status": "ok", "app_id": new_app["id"]})
 
 @app.route("/telegram", methods=["POST"])
@@ -118,28 +120,52 @@ def change_tag(message):
         if not target_user: bot.reply_to(message, f"❌ Пользователь @{target_username} не найден."); return
         bot.set_chat_administrator_custom_title(chat_id=STAFF_GROUP_ID, user_id=target_user.id, custom_title=new_tag)
         bot.reply_to(message, f"✅ Тег для @{target_username} изменён на: **{new_tag}**", parse_mode="Markdown")
-    except Exception as e: bot.reply_to(message, f"❌ Ошибка: {e}")
+    except Exception as e:
+        print(f"[ERROR] change_tag: {e}")
+        bot.reply_to(message, f"❌ Ошибка: {e}")
 
 @bot.message_handler(content_types=['new_chat_members'])
 def on_new_member(message):
-    if message.chat.id != STAFF_GROUP_ID: return
+    print(f"[LOG] Новые участники в группе {message.chat.id}: {[m.id for m in message.new_chat_members]}")
+    if message.chat.id != STAFF_GROUP_ID:
+        print(f"[LOG] Игнорируем: группа {message.chat.id} не равна {STAFF_GROUP_ID}")
+        return
     for new_member in message.new_chat_members:
         apps = load_json(DATA_FILE, [])
+        found = False
         for app in apps:
-            if app.get("chat_id") == new_member.id and app["status"] == "accepted" and not app.get("renamed_in_group"):
+            if app.get("chat_id") == new_member.id and app["status"] == "accepted":
+                found = True
                 mc_nick = app.get("minecraft_nick", "")
+                print(f"[LOG] Найдена заявка #{app['id']} для пользователя {new_member.id}, ник: {mc_nick}")
+                if app.get("renamed_in_group"):
+                    print(f"[LOG] Пользователь {new_member.id} уже был переименован.")
+                    break
                 try:
                     bot.set_chat_administrator_custom_title(chat_id=STAFF_GROUP_ID, user_id=new_member.id, custom_title=mc_nick)
-                    app["renamed_in_group"] = True; save_json(DATA_FILE, apps)
+                    app["renamed_in_group"] = True
+                    save_json(DATA_FILE, apps)
                     bot.send_message(STAFF_GROUP_ID, f"👋 Добро пожаловать, **{app['real_name']}**!\nРоль: Мл. Модератор\nТег: `{mc_nick}`", parse_mode="Markdown")
-                except:
+                    print(f"[OK] Тег установлен для {new_member.id}: {mc_nick}")
+                except Exception as e:
+                    print(f"[ERROR] Не удалось установить тег: {e}")
                     try:
-                        bot.promote_chat_member(chat_id=STAFF_GROUP_ID, user_id=new_member.id, can_change_info=False, can_post_messages=False, can_edit_messages=False, can_delete_messages=False, can_invite_users=False, can_restrict_members=False, can_pin_messages=False, can_promote_members=False, can_manage_chat=False, can_manage_video_chats=False)
+                        print("[LOG] Пробуем через временное повышение...")
+                        bot.promote_chat_member(chat_id=STAFF_GROUP_ID, user_id=new_member.id,
+                            can_change_info=False, can_post_messages=False, can_edit_messages=False,
+                            can_delete_messages=False, can_invite_users=False, can_restrict_members=False,
+                            can_pin_messages=False, can_promote_members=False, can_manage_chat=False,
+                            can_manage_video_chats=False)
                         bot.set_chat_administrator_custom_title(chat_id=STAFF_GROUP_ID, user_id=new_member.id, custom_title=mc_nick)
-                        app["renamed_in_group"] = True; save_json(DATA_FILE, apps)
+                        app["renamed_in_group"] = True
+                        save_json(DATA_FILE, apps)
                         bot.send_message(STAFF_GROUP_ID, f"👋 Добро пожаловать, **{app['real_name']}**!\nРоль: Мл. Модератор\nТег: `{mc_nick}`", parse_mode="Markdown")
-                    except: pass
+                        print(f"[OK] Тег установлен после промоушна для {new_member.id}: {mc_nick}")
+                    except Exception as e2:
+                        print(f"[ERROR] Не удалось даже после промоушна: {e2}")
                 break
+        if not found:
+            print(f"[LOG] Заявка для пользователя {new_member.id} не найдена (не из нашей системы).")
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_handler(call):
@@ -147,7 +173,7 @@ def callback_handler(call):
         bot.answer_callback_query(call.id, "⛔ Нет доступа."); return
     data, apps = call.data, load_json(DATA_FILE, [])
     if data == "list_ml_moderator": show_ml_list(call, apps)
-    elif data.startswith("ml_view_"): 
+    elif data.startswith("ml_view_"):
         app = next((a for a in apps if a["id"] == int(data.split("_")[2])), None)
         if app: show_ml_detail(call, app)
     elif data.startswith("ml_accept_"): accept_ml_app(call, int(data.split("_")[2]), apps)
@@ -155,7 +181,7 @@ def callback_handler(call):
     elif data == "back_to_admin": admin_panel(call.message)
 
 def show_ml_list(call, apps):
-    if not apps: bot.edit_message_text("📭 Заявок на мл. модератора нет.", call.message.chat.id, call.message.message_id); return
+    if not apps: bot.edit_message_text("📭 Заявок нет.", call.message.chat.id, call.message.message_id); return
     text, keyboard = "🛡️ Заявки на мл. модератора:\n\n", types.InlineKeyboardMarkup(row_width=1)
     for a in apps[:10]:
         emoji = "✅" if a["status"] == "accepted" else "❌" if a["status"] == "rejected" else "⏳"
@@ -166,7 +192,7 @@ def show_ml_list(call, apps):
 
 def show_ml_detail(call, app):
     status = "✅ Принята" if app["status"] == "accepted" else "❌ Отклонена" if app["status"] == "rejected" else "⏳ Ожидает"
-    text = f"🛡️ Заявка на мл. модератора #{app['id']}\n\n👤 Имя: {app['real_name']}\n⛏ Ник: {app['minecraft_nick']}\n📬 Telegram: @{app.get('telegram_user','')}\n🎂 Возраст: {app.get('age','')}\n📊 Статус: {status}\n🤝 Согласие с правилами: {'Да' if app.get('agreement') == 'yes' else 'Нет'}\n\n🛠 Опыт: {app.get('experience','—')}\n💬 Мотивация: {app.get('motivation','—')}\n\n📜 Ответы на правила:\n1. Читы (6.1): {app.get('rule_6_1','—')}\n2. Гриферство (8.1): {app.get('rule_8_1','—')}\n3. Оскорбления (2.1): {app.get('rule_2_1','—')}\n4. Администраторам (3.2): {app.get('rule_3_2','—')}\n5. Чужая территория (9.3): {app.get('rule_9_3','—')}\n6. Спам/флуд (2.2-2.3): {app.get('rule_2_2_2_3','—')}\n7. Обход бана (8.5): {app.get('rule_8_5','—')}"
+    text = f"🛡️ Заявка #{app['id']}\n\n👤 {app['real_name']}\n⛏ {app['minecraft_nick']}\n📬 @{app.get('telegram_user','')}\n🎂 {app.get('age','')}\n📊 {status}\n🤝 {'Да' if app.get('agreement')=='yes' else 'Нет'}\n\n🛠 {app.get('experience','—')}\n💬 {app.get('motivation','—')}"
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     if app["status"] == "pending":
         keyboard.add(types.InlineKeyboardButton("✅ Принять", callback_data=f"ml_accept_{app['id']}"), types.InlineKeyboardButton("❌ Отклонить", callback_data=f"ml_reject_{app['id']}"))
@@ -176,68 +202,43 @@ def show_ml_detail(call, app):
 def accept_ml_app(call, app_id, apps):
     app = next((a for a in apps if a["id"] == app_id), None)
     if not app or app["status"] != "pending":
-        bot.edit_message_text("❌ Заявка не найдена или уже обработана.", call.message.chat.id, call.message.message_id)
-        return
-
+        bot.edit_message_text("❌ Не найдена.", call.message.chat.id, call.message.message_id); return
     app["status"] = "accepted"
     chat_id, user_nick = app["chat_id"], app.get("minecraft_nick", "игрок")
+    print(f"[LOG] Принимаем заявку #{app_id}, chat_id={chat_id}, ник={user_nick}")
 
-    # ----- Прямое добавление в группу -----
-    added = False
+    # Прямое добавление
     try:
-        # Попытка добавить пользователя напрямую (требуются права администратора с Add Users)
         bot.add_chat_member(chat_id=STAFF_GROUP_ID, user_id=chat_id)
-        added = True
-        bot.send_message(chat_id, "✅ Ты был автоматически добавлен в группу модераторов FoggyLand!")
-        print(f"[OK] Пользователь {chat_id} добавлен напрямую.")
+        print(f"[OK] Пользователь {chat_id} добавлен напрямую!")
+        bot.send_message(chat_id, "✅ Ты добавлен в группу модераторов FoggyLand! Тег будет выдан автоматически.")
+        bot.send_message(STAFF_GROUP_ID, f"👋 Новый мл. модератор **{user_nick}** присоединился!", parse_mode="Markdown")
     except Exception as e:
-        print(f"[ERROR] add_chat_member не сработал: {e}")
-        # Если не получилось – создаём одноразовую ссылку
+        print(f"[ERROR] add_chat_member: {e}")
         try:
-            invite = bot.create_chat_invite_link(
-                chat_id=STAFF_GROUP_ID,
-                member_limit=1,
-                name=f"Приглашение для {user_nick}"
-            )
-            bot.send_message(chat_id,
-                f"🎉 Поздравляю, {app['real_name']}!\n\n"
-                f"Твоя заявка на мл. модератора одобрена!\n"
-                f"Чтобы присоединиться к команде, перейди по ссылке:\n\n"
-                f"🔗 {invite.invite_link}\n\n"
-                f"После входа тебе автоматически будет выдан тег.",
-                disable_web_page_preview=True)
+            invite = bot.create_chat_invite_link(chat_id=STAFF_GROUP_ID, member_limit=1, name=f"Приглашение для {user_nick}")
+            bot.send_message(chat_id, f"🎉 Поздравляю, {app['real_name']}!\n\nТвоя заявка одобрена!\nПерейди по ссылке для входа в группу:\n\n🔗 {invite.invite_link}\n\nПосле входа тебе автоматически выдадут тег.", disable_web_page_preview=True)
+            bot.send_message(STAFF_GROUP_ID, f"👋 Новый мл. модератор **{user_nick}** скоро присоединится по приглашению.", parse_mode="Markdown")
             print(f"[OK] Отправлена ссылка-приглашение для {chat_id}")
         except Exception as e2:
-            print(f"[ERROR] Не удалось создать ссылку: {e2}")
+            print(f"[ERROR] create_chat_invite_link: {e2}")
             bot.send_message(chat_id, "⚠️ Не удалось добавить в группу. Администратор добавит вас вручную.")
-
-    # Уведомление в группу
-    if added:
-        try:
-            bot.send_message(STAFF_GROUP_ID, f"👋 Новый мл. модератор **{user_nick}** только что присоединился!", parse_mode="Markdown")
-        except: pass
-    else:
-        try:
-            bot.send_message(STAFF_GROUP_ID, f"👋 Новый мл. модератор **{user_nick}** скоро присоединится по приглашению.", parse_mode="Markdown")
-        except: pass
 
     save_json(DATA_FILE, apps)
     bot.edit_message_text(f"✅ Заявка #{app_id} принята!", call.message.chat.id, call.message.message_id)
 
 def reject_ml_app(call, app_id, apps):
     app = next((a for a in apps if a["id"] == app_id), None)
-    if not app or app["status"] != "pending":
-        bot.edit_message_text("❌ Заявка не найдена или уже обработана.", call.message.chat.id, call.message.message_id)
-        return
+    if not app or app["status"] != "pending": bot.edit_message_text("❌ Не найдена.", call.message.chat.id, call.message.message_id); return
     app["status"] = "rejected"
     save_json(DATA_FILE, apps)
-    try: bot.send_message(app["chat_id"], f"Привет {app['real_name']}. К сожалению, твоя заявка на мл. модератора не прошла. Можешь подать повторно через 7 дней.")
-    except: pass
+    try: bot.send_message(app["chat_id"], f"Привет {app['real_name']}. К сожалению, твоя заявка не прошла. Можешь подать повторно через 7 дней.")
+    except Exception as e: print(f"[ERROR] reject notify: {e}")
     bot.edit_message_text(f"❌ Заявка #{app_id} отклонена!", call.message.chat.id, call.message.message_id)
 
 if __name__ == "__main__":
     try: bot.remove_webhook()
     except: pass
     bot.set_webhook(url=f"{RENDER_URL}/telegram")
-    print(f"Бот запущен. Группа: {STAFF_GROUP_ID}, Админ: {ADMIN_IDS}")
+    print(f"[START] Бот запущен. Группа: {STAFF_GROUP_ID}, Админы: {ADMIN_IDS}")
     app.run(host="0.0.0.0", port=PORT)
