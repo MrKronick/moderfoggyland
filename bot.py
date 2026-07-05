@@ -15,6 +15,7 @@ STAFF_INVITE_LINK = "https://t.me/+mgRGzcfEHfE4YWUy"
 
 DATA_FILE = "ml_moderator_applications.json"
 PENDING_CODES_FILE = "pending_codes.json"
+PENDING_TAGS_FILE = "pending_tags.json"  # очередь на выдачу тега
 PORT = int(os.environ.get("PORT", 10000))
 RENDER_URL = "https://moderfoggyland.onrender.com"
 
@@ -126,46 +127,76 @@ def change_tag(message):
 
 @bot.message_handler(content_types=['new_chat_members'])
 def on_new_member(message):
-    print(f"[LOG] Новые участники в группе {message.chat.id}: {[m.id for m in message.new_chat_members]}")
+    print(f"[LOG] Событие new_chat_members в чате {message.chat.id}. Участники: {[m.id for m in message.new_chat_members]}")
     if message.chat.id != STAFF_GROUP_ID:
-        print(f"[LOG] Игнорируем: группа {message.chat.id} не равна {STAFF_GROUP_ID}")
+        print(f"[LOG] Игнорируем — не наша группа (нужна {STAFF_GROUP_ID}, пришла {message.chat.id})")
         return
+
+    # Загружаем очередь тегов
+    pending_tags = load_json(PENDING_TAGS_FILE, [])
+    apps = load_json(DATA_FILE, [])
+
     for new_member in message.new_chat_members:
-        apps = load_json(DATA_FILE, [])
-        found = False
-        for app in apps:
-            if app.get("chat_id") == new_member.id and app["status"] == "accepted":
-                found = True
-                mc_nick = app.get("minecraft_nick", "")
-                print(f"[LOG] Найдена заявка #{app['id']} для пользователя {new_member.id}, ник: {mc_nick}")
-                if app.get("renamed_in_group"):
-                    print(f"[LOG] Пользователь {new_member.id} уже был переименован.")
-                    break
+        user_id = new_member.id
+        print(f"[LOG] Обрабатываем пользователя {user_id}")
+
+        # 1. Проверяем, есть ли он в очереди тегов
+        tag_entry = next((t for t in pending_tags if t["chat_id"] == user_id), None)
+        if tag_entry:
+            nick = tag_entry["nick"]
+            print(f"[LOG] Найден в очереди тегов: ник {nick}")
+            try:
+                bot.set_chat_administrator_custom_title(chat_id=STAFF_GROUP_ID, user_id=user_id, custom_title=nick)
+                print(f"[OK] Тег '{nick}' установлен (из очереди).")
+                pending_tags.remove(tag_entry)
+                save_json(PENDING_TAGS_FILE, pending_tags)
+                bot.send_message(STAFF_GROUP_ID, f"👋 Добро пожаловать! Твой тег: **{nick}**", parse_mode="Markdown")
+            except Exception as e:
+                print(f"[ERROR] Не удалось установить тег из очереди: {e}")
+                # Пробуем через промоушн
                 try:
-                    bot.set_chat_administrator_custom_title(chat_id=STAFF_GROUP_ID, user_id=new_member.id, custom_title=mc_nick)
+                    bot.promote_chat_member(chat_id=STAFF_GROUP_ID, user_id=user_id,
+                        can_change_info=False, can_post_messages=False, can_edit_messages=False,
+                        can_delete_messages=False, can_invite_users=False, can_restrict_members=False,
+                        can_pin_messages=False, can_promote_members=False, can_manage_chat=False,
+                        can_manage_video_chats=False)
+                    bot.set_chat_administrator_custom_title(chat_id=STAFF_GROUP_ID, user_id=user_id, custom_title=nick)
+                    pending_tags.remove(tag_entry)
+                    save_json(PENDING_TAGS_FILE, pending_tags)
+                    print(f"[OK] Тег '{nick}' установлен после промоушна.")
+                    bot.send_message(STAFF_GROUP_ID, f"👋 Добро пожаловать! Твой тег: **{nick}**", parse_mode="Markdown")
+                except Exception as e2:
+                    print(f"[ERROR] Не удалось даже после промоушна: {e2}")
+        else:
+            # 2. Ищем в заявках (на случай, если не записалось в очередь)
+            app = next((a for a in apps if a.get("chat_id") == user_id and a["status"] == "accepted" and not a.get("renamed_in_group")), None)
+            if app:
+                nick = app.get("minecraft_nick", "")
+                print(f"[LOG] Найден в заявках #{app['id']}, ник: {nick}")
+                try:
+                    bot.set_chat_administrator_custom_title(chat_id=STAFF_GROUP_ID, user_id=user_id, custom_title=nick)
                     app["renamed_in_group"] = True
                     save_json(DATA_FILE, apps)
-                    bot.send_message(STAFF_GROUP_ID, f"👋 Добро пожаловать, **{app['real_name']}**!\nРоль: Мл. Модератор\nТег: `{mc_nick}`", parse_mode="Markdown")
-                    print(f"[OK] Тег установлен для {new_member.id}: {mc_nick}")
+                    print(f"[OK] Тег '{nick}' установлен через заявку.")
+                    bot.send_message(STAFF_GROUP_ID, f"👋 Добро пожаловать! Твой тег: **{nick}**", parse_mode="Markdown")
                 except Exception as e:
-                    print(f"[ERROR] Не удалось установить тег: {e}")
+                    print(f"[ERROR] Установка тега через заявку: {e}")
+                    # Промоушн
                     try:
-                        print("[LOG] Пробуем через временное повышение...")
-                        bot.promote_chat_member(chat_id=STAFF_GROUP_ID, user_id=new_member.id,
+                        bot.promote_chat_member(chat_id=STAFF_GROUP_ID, user_id=user_id,
                             can_change_info=False, can_post_messages=False, can_edit_messages=False,
                             can_delete_messages=False, can_invite_users=False, can_restrict_members=False,
                             can_pin_messages=False, can_promote_members=False, can_manage_chat=False,
                             can_manage_video_chats=False)
-                        bot.set_chat_administrator_custom_title(chat_id=STAFF_GROUP_ID, user_id=new_member.id, custom_title=mc_nick)
+                        bot.set_chat_administrator_custom_title(chat_id=STAFF_GROUP_ID, user_id=user_id, custom_title=nick)
                         app["renamed_in_group"] = True
                         save_json(DATA_FILE, apps)
-                        bot.send_message(STAFF_GROUP_ID, f"👋 Добро пожаловать, **{app['real_name']}**!\nРоль: Мл. Модератор\nТег: `{mc_nick}`", parse_mode="Markdown")
-                        print(f"[OK] Тег установлен после промоушна для {new_member.id}: {mc_nick}")
+                        print(f"[OK] Тег '{nick}' установлен после промоушна.")
+                        bot.send_message(STAFF_GROUP_ID, f"👋 Добро пожаловать! Твой тег: **{nick}**", parse_mode="Markdown")
                     except Exception as e2:
                         print(f"[ERROR] Не удалось даже после промоушна: {e2}")
-                break
-        if not found:
-            print(f"[LOG] Заявка для пользователя {new_member.id} не найдена (не из нашей системы).")
+            else:
+                print(f"[LOG] Пользователь {user_id} не из нашей системы.")
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_handler(call):
@@ -228,7 +259,13 @@ def accept_ml_app(call, app_id, apps):
     chat_id, user_nick = app["chat_id"], app.get("minecraft_nick", "игрок")
     print(f"[LOG] Принимаем заявку #{app_id}, chat_id={chat_id}, ник={user_nick}")
 
-    # Прямое добавление
+    # Записываем в очередь тегов (чтобы точно выдать при входе)
+    pending_tags = load_json(PENDING_TAGS_FILE, [])
+    pending_tags.append({"chat_id": chat_id, "nick": user_nick})
+    save_json(PENDING_TAGS_FILE, pending_tags)
+    print(f"[LOG] Добавлен в очередь тегов: {chat_id} -> {user_nick}")
+
+    # Пробуем добавить напрямую
     try:
         bot.add_chat_member(chat_id=STAFF_GROUP_ID, user_id=chat_id)
         print(f"[OK] Пользователь {chat_id} добавлен напрямую!")
