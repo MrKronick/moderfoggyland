@@ -19,8 +19,8 @@ PORT = int(os.environ.get("PORT", 10000))
 RENDER_URL = "https://moderfoggyland.onrender.com"   # ❗ свой Render URL
 
 # Переменные для группы (установи их в Render)
-STAFF_GROUP_ID = os.environ.get("STAFF_GROUP_ID", "-1003682731952")  # ❗ ID группы
-STAFF_INVITE_LINK = os.environ.get("STAFF_INVITE_LINK", "https://t.me/+mgRGzcfEHfE4YWUy")  # ❗ ссылка
+STAFF_GROUP_ID = os.environ.get("STAFF_GROUP_ID", "-1003682731952")
+STAFF_INVITE_LINK = os.environ.get("STAFF_INVITE_LINK", "https://t.me/+mgRGzcfEHfE4YWUy")
 
 # ========== ХРАНИЛИЩЕ ==========
 def load_json(filename, default=None):
@@ -258,54 +258,59 @@ def accept_ml_app(call, app_id, apps):
     app["status"] = "accepted"
 
     # ---------- АВТОМАТИЧЕСКОЕ ДОБАВЛЕНИЕ В ГРУППУ ----------
-    group_id = STAFF_GROUP_ID
-    invite_link = STAFF_INVITE_LINK
+    group_id = int(STAFF_GROUP_ID) if STAFF_GROUP_ID.lstrip('-').isdigit() else None
     chat_id = app["chat_id"]
     user_nick = app.get("minecraft_nick", "игрок")
 
-    # Создаём одноразовую ссылку-приглашение
-    try:
-        invite = bot.create_chat_invite_link(
-            chat_id=group_id,
-            member_limit=1,
-            name=f"Приглашение для {user_nick}"
-        )
-        personal_link = invite.invite_link
-    except Exception as e:
-        print(f"Не удалось создать ссылку приглашения: {e}")
-        personal_link = invite_link
+    added_to_group = False
+    if group_id:
+        try:
+            # Пробуем добавить напрямую (если бот может приглашать)
+            bot.add_chat_member(chat_id=group_id, user_id=chat_id)
+            added_to_group = True
+            bot.send_message(chat_id, "✅ Ты был автоматически добавлен в группу модераторов FoggyLand!")
+        except Exception as e:
+            print(f"Не удалось добавить напрямую: {e}")
+            # fallback — создаём ссылку-приглашение
+            try:
+                invite = bot.create_chat_invite_link(
+                    chat_id=group_id,
+                    member_limit=1,
+                    name=f"Приглашение для {user_nick}"
+                )
+                personal_link = invite.invite_link
+                bot.send_message(
+                    chat_id=chat_id,
+                    text=(
+                        f"🎉 Поздравляю, {app['real_name']}!\n\n"
+                        f"Твоя заявка на мл. модератора одобрена!\n"
+                        f"Чтобы присоединиться к команде, перейди по ссылке:\n\n"
+                        f"🔗 {personal_link}\n\n"
+                        f"После входа представься: ник {user_nick}, роль — мл. модератор."
+                    ),
+                    disable_web_page_preview=True
+                )
+            except Exception as e2:
+                print(f"Не удалось создать ссылку: {e2}")
+                bot.send_message(chat_id, "⚠️ Не удалось добавить в группу. Администратор сделает это вручную.")
+    else:
+        bot.send_message(chat_id, "⚠️ ID группы не настроен. Администратор добавит вас вручную.")
 
-    # Отправляем кандидату приглашение и инструкцию
-    try:
-        bot.send_message(
-            chat_id=chat_id,
-            text=(
-                f"🎉 Поздравляю, {app['real_name']}!\n\n"
-                f"Твоя заявка на мл. модератора одобрена!\n"
-                f"Чтобы присоединиться к команде, перейди по ссылке ниже.\n\n"
-                f"🔗 {personal_link}\n\n"
-                f"После входа представься: ник {user_nick}, роль — мл. модератор."
-            ),
-            disable_web_page_preview=True
-        )
-    except Exception as e:
-        print(f"Не удалось отправить сообщение кандидату: {e}")
+    # Уведомление в группу
+    if group_id:
+        try:
+            bot.send_message(
+                chat_id=group_id,
+                text=f"👋 Новый мл. модератор **{user_nick}** {'присоединился' if added_to_group else 'скоро присоединится'}!",
+                parse_mode="Markdown"
+            )
+        except:
+            pass
 
-    # Уведомление в группу о новом участнике
-    try:
-        bot.send_message(
-            chat_id=group_id,
-            text=f"👋 Приветствуем нового мл. модератора: **{user_nick}**!\nОн должен присоединиться в ближайшее время.",
-            parse_mode="Markdown"
-        )
-    except Exception as e:
-        print(f"Не удалось отправить сообщение в группу: {e}")
-
-    app["invite_link"] = personal_link
     save_json(DATA_FILE, apps)
     # ---------- КОНЕЦ ДОБАВЛЕНИЯ ----------
 
-    bot.edit_message_text(f"✅ Заявка #{app_id} принята! Приглашение отправлено.", call.message.chat.id, call.message.message_id)
+    bot.edit_message_text(f"✅ Заявка #{app_id} принята!", call.message.chat.id, call.message.message_id)
 
 def reject_ml_app(call, app_id, apps):
     app = next((a for a in apps if a["id"] == app_id), None)
