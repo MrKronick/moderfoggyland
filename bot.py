@@ -12,7 +12,10 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN:
     raise ValueError("TELEGRAM_TOKEN не установлен!")
 
-ADMIN_IDS = [5145474067]   # ❗ Свой Telegram ID
+# ❗ Свой Telegram ID и username
+ADMIN_IDS = [5145474067]  # Твой Telegram ID
+ADMIN_USERNAME = "MrKronick"  # Твой username (без @)
+
 DATA_FILE = "ml_moderator_applications.json"
 PENDING_CODES_FILE = "pending_codes.json"
 PORT = int(os.environ.get("PORT", 10000))
@@ -83,7 +86,8 @@ def ml_moderator_webhook():
         "rule_8_5": data.get("rule_8_5", ""),
         "agreement": agreement,
         "status": "pending",
-        "submitted_at": datetime.now().isoformat()
+        "submitted_at": datetime.now().isoformat(),
+        "renamed_in_group": False
     }
     apps.append(new_app)
     save_json(DATA_FILE, apps)
@@ -113,6 +117,15 @@ def telegram_webhook():
         bot.process_new_updates([update])
         return "OK"
     return "Bad request", 400
+
+# ========== ПРОВЕРКА ДОСТУПА ==========
+def is_admin(user_id=None, username=None):
+    """Проверяет, является ли пользователь владельцем."""
+    if user_id and user_id in ADMIN_IDS:
+        return True
+    if username and username.lower() == ADMIN_USERNAME.lower():
+        return True
+    return False
 
 # ========== КЛАВИАТУРА ==========
 def main_keyboard():
@@ -154,8 +167,8 @@ def button_help(message):
 # Админ-панель (скрытая команда)
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
-    if message.chat.id not in ADMIN_IDS:
-        bot.reply_to(message, "⛔ Нет доступа.")
+    if not is_admin(user_id=message.from_user.id, username=message.from_user.username):
+        bot.reply_to(message, "⛔ У вас нет доступа к этой команде.")
         return
     keyboard = types.InlineKeyboardMarkup(row_width=1)
     keyboard.add(
@@ -163,11 +176,113 @@ def admin_panel(message):
     )
     bot.send_message(message.chat.id, "🎛 Админ-панель FoggyLand", reply_markup=keyboard)
 
+# ========== КОМАНДА ДЛЯ СМЕНЫ ТЕГА В ГРУППЕ ==========
+@bot.message_handler(commands=['сменитьтег'])
+def change_tag(message):
+    """Команда для смены тега в группе: /сменитьтег @username НовыйТег"""
+    if not is_admin(user_id=message.from_user.id, username=message.from_user.username):
+        bot.reply_to(message, "⛔ Только владелец (@MrKronick) может менять теги.")
+        return
+
+    args = message.text.split()
+    if len(args) < 3:
+        bot.reply_to(message, "Использование: /сменитьтег @username НовыйТег")
+        return
+
+    target_username = args[1].lstrip('@')
+    new_tag = " ".join(args[2:])
+
+    group_id = int(STAFF_GROUP_ID) if STAFF_GROUP_ID.lstrip('-').isdigit() else None
+    if not group_id:
+        bot.reply_to(message, "❌ ID группы не настроен.")
+        return
+
+    # Ищем пользователя в группе
+    try:
+        # Получаем список администраторов (чтобы найти пользователя)
+        admins = bot.get_chat_administrators(group_id)
+        target_user = None
+        for admin in admins:
+            if admin.user.username and admin.user.username.lower() == target_username.lower():
+                target_user = admin.user
+                break
+
+        if not target_user:
+            bot.reply_to(message, f"❌ Пользователь @{target_username} не найден среди участников группы.")
+            return
+
+        # Устанавливаем кастомный титул
+        bot.set_chat_administrator_custom_title(
+            chat_id=group_id,
+            user_id=target_user.id,
+            custom_title=new_tag
+        )
+        bot.reply_to(message, f"✅ Тег для @{target_username} изменён на: **{new_tag}**", parse_mode="Markdown")
+
+        # Обновляем заявку (если есть)
+        apps = load_json(DATA_FILE, [])
+        updated = False
+        for app in apps:
+            if app.get("chat_id") == target_user.id:
+                app["minecraft_nick"] = new_tag
+                app["group_nickname"] = new_tag
+                updated = True
+        if updated:
+            save_json(DATA_FILE, apps)
+            bot.send_message(message.chat.id, "📝 Запись в заявке также обновлена.")
+
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка при смене тега: {e}")
+
+# ========== ОТСЛЕЖИВАНИЕ НОВЫХ УЧАСТНИКОВ ГРУППЫ ==========
+@bot.message_handler(content_types=['new_chat_members'])
+def on_new_member(message):
+    """Срабатывает, когда новый участник заходит в группу."""
+    group_id = str(message.chat.id)
+    staff_group_id = STAFF_GROUP_ID.lstrip('-')
+
+    # Проверяем, что это наша группа
+    if group_id != staff_group_id:
+        return
+
+    for new_member in message.new_chat_members:
+        user_id = new_member.id
+
+        # Ищем заявку этого пользователя
+        apps = load_json(DATA_FILE, [])
+        for app in apps:
+            if app.get("chat_id") == user_id and app["status"] == "accepted" and not app.get("renamed_in_group"):
+                mc_nick = app.get("minecraft_nick", "")
+
+                try:
+                    # Пытаемся установить кастомный титул (тег)
+                    bot.set_chat_administrator_custom_title(
+                        chat_id=int(staff_group_id),
+                        user_id=user_id,
+                        custom_title=mc_nick
+                    )
+                    print(f"✅ Пользователю {user_id} установлен тег: {mc_nick}")
+                    app["renamed_in_group"] = True
+                    save_json(DATA_FILE, apps)
+
+                    bot.send_message(
+                        chat_id=message.chat.id,
+                        text=f"👋 Добро пожаловать, **{app['real_name']}**!\n"
+                             f"Роль: Мл. Модератор\n"
+                             f"Тег: `{mc_nick}`\n\n"
+                             f"Представься команде!",
+                        parse_mode="Markdown"
+                    )
+                except Exception as e:
+                    print(f"Не удалось установить тег: {e}")
+
+                break
+
 # ========== ОБРАБОТКА ЗАЯВОК (мл. модератор) ==========
 @bot.callback_query_handler(func=lambda call: True)
 def callback_handler(call):
     chat_id = call.message.chat.id
-    if call.from_user.id not in ADMIN_IDS:
+    if not is_admin(user_id=call.from_user.id, username=call.from_user.username):
         bot.answer_callback_query(call.id, "⛔ Нет доступа.")
         return
 
@@ -265,13 +380,11 @@ def accept_ml_app(call, app_id, apps):
     added_to_group = False
     if group_id:
         try:
-            # Пробуем добавить напрямую (если бот может приглашать)
             bot.add_chat_member(chat_id=group_id, user_id=chat_id)
             added_to_group = True
             bot.send_message(chat_id, "✅ Ты был автоматически добавлен в группу модераторов FoggyLand!")
         except Exception as e:
             print(f"Не удалось добавить напрямую: {e}")
-            # fallback — создаём ссылку-приглашение
             try:
                 invite = bot.create_chat_invite_link(
                     chat_id=group_id,
@@ -296,7 +409,6 @@ def accept_ml_app(call, app_id, apps):
     else:
         bot.send_message(chat_id, "⚠️ ID группы не настроен. Администратор добавит вас вручную.")
 
-    # Уведомление в группу
     if group_id:
         try:
             bot.send_message(
@@ -308,7 +420,6 @@ def accept_ml_app(call, app_id, apps):
             pass
 
     save_json(DATA_FILE, apps)
-    # ---------- КОНЕЦ ДОБАВЛЕНИЯ ----------
 
     bot.edit_message_text(f"✅ Заявка #{app_id} принята!", call.message.chat.id, call.message.message_id)
 
