@@ -12,18 +12,16 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN:
     raise ValueError("TELEGRAM_TOKEN не установлен!")
 
-# ❗ Свой Telegram ID и username
+# Твои данные (вшиты прямо в код)
 ADMIN_IDS = [5145474067]  # Твой Telegram ID
 ADMIN_USERNAME = "MrKronick"  # Твой username (без @)
+STAFF_GROUP_ID = -1003682731952  # ID твоей группы (с минусом!)
+STAFF_INVITE_LINK = "https://t.me/+mgRGzcfEHfE4YWUy"  # Твоя ссылка-приглашение
 
 DATA_FILE = "ml_moderator_applications.json"
 PENDING_CODES_FILE = "pending_codes.json"
 PORT = int(os.environ.get("PORT", 10000))
 RENDER_URL = "https://moderfoggyland.onrender.com"   # ❗ свой Render URL
-
-# Переменные для группы (установи их в Render)
-STAFF_GROUP_ID = os.environ.get("STAFF_GROUP_ID", "-1003682731952")
-STAFF_INVITE_LINK = os.environ.get("STAFF_INVITE_LINK", "https://t.me/+mgRGzcfEHfE4YWUy")
 
 # ========== ХРАНИЛИЩЕ ==========
 def load_json(filename, default=None):
@@ -192,15 +190,9 @@ def change_tag(message):
     target_username = args[1].lstrip('@')
     new_tag = " ".join(args[2:])
 
-    group_id = int(STAFF_GROUP_ID) if STAFF_GROUP_ID.lstrip('-').isdigit() else None
-    if not group_id:
-        bot.reply_to(message, "❌ ID группы не настроен.")
-        return
-
-    # Ищем пользователя в группе
     try:
         # Получаем список администраторов (чтобы найти пользователя)
-        admins = bot.get_chat_administrators(group_id)
+        admins = bot.get_chat_administrators(STAFF_GROUP_ID)
         target_user = None
         for admin in admins:
             if admin.user.username and admin.user.username.lower() == target_username.lower():
@@ -213,7 +205,7 @@ def change_tag(message):
 
         # Устанавливаем кастомный титул
         bot.set_chat_administrator_custom_title(
-            chat_id=group_id,
+            chat_id=STAFF_GROUP_ID,
             user_id=target_user.id,
             custom_title=new_tag
         )
@@ -238,15 +230,15 @@ def change_tag(message):
 @bot.message_handler(content_types=['new_chat_members'])
 def on_new_member(message):
     """Срабатывает, когда новый участник заходит в группу."""
-    group_id = str(message.chat.id)
-    staff_group_id = STAFF_GROUP_ID.lstrip('-')
+    group_id = message.chat.id
 
     # Проверяем, что это наша группа
-    if group_id != staff_group_id:
+    if group_id != STAFF_GROUP_ID:
         return
 
     for new_member in message.new_chat_members:
         user_id = new_member.id
+        print(f"Новый участник в группе: {new_member.first_name} (ID: {user_id})")
 
         # Ищем заявку этого пользователя
         apps = load_json(DATA_FILE, [])
@@ -257,7 +249,7 @@ def on_new_member(message):
                 try:
                     # Пытаемся установить кастомный титул (тег)
                     bot.set_chat_administrator_custom_title(
-                        chat_id=int(staff_group_id),
+                        chat_id=group_id,
                         user_id=user_id,
                         custom_title=mc_nick
                     )
@@ -266,7 +258,7 @@ def on_new_member(message):
                     save_json(DATA_FILE, apps)
 
                     bot.send_message(
-                        chat_id=message.chat.id,
+                        chat_id=group_id,
                         text=f"👋 Добро пожаловать, **{app['real_name']}**!\n"
                              f"Роль: Мл. Модератор\n"
                              f"Тег: `{mc_nick}`\n\n"
@@ -274,7 +266,42 @@ def on_new_member(message):
                         parse_mode="Markdown"
                     )
                 except Exception as e:
-                    print(f"Не удалось установить тег: {e}")
+                    print(f"Не удалось установить тег для {user_id}: {e}")
+                    # Пробуем через промоушн
+                    try:
+                        bot.promote_chat_member(
+                            chat_id=group_id,
+                            user_id=user_id,
+                            can_change_info=False,
+                            can_post_messages=False,
+                            can_edit_messages=False,
+                            can_delete_messages=False,
+                            can_invite_users=False,
+                            can_restrict_members=False,
+                            can_pin_messages=False,
+                            can_promote_members=False,
+                            can_manage_chat=False,
+                            can_manage_video_chats=False
+                        )
+                        bot.set_chat_administrator_custom_title(
+                            chat_id=group_id,
+                            user_id=user_id,
+                            custom_title=mc_nick
+                        )
+                        print(f"✅ Пользователю {user_id} установлен тег после промоушна: {mc_nick}")
+                        app["renamed_in_group"] = True
+                        save_json(DATA_FILE, apps)
+
+                        bot.send_message(
+                            chat_id=group_id,
+                            text=f"👋 Добро пожаловать, **{app['real_name']}**!\n"
+                                 f"Роль: Мл. Модератор\n"
+                                 f"Тег: `{mc_nick}`\n\n"
+                                 f"Представься команде!",
+                            parse_mode="Markdown"
+                        )
+                    except Exception as e2:
+                        print(f"Не удалось установить тег даже после промоушна: {e2}")
 
                 break
 
@@ -371,49 +398,48 @@ def accept_ml_app(call, app_id, apps):
         return
 
     app["status"] = "accepted"
-
-    # ---------- АВТОМАТИЧЕСКОЕ ДОБАВЛЕНИЕ В ГРУППУ ----------
-    group_id = int(STAFF_GROUP_ID) if STAFF_GROUP_ID.lstrip('-').isdigit() else None
     chat_id = app["chat_id"]
     user_nick = app.get("minecraft_nick", "игрок")
 
-    added_to_group = False
-    if group_id:
+    # ---------- ДОБАВЛЕНИЕ В ГРУППУ ----------
+    added = False
+    try:
+        # Сначала пробуем добавить напрямую
+        bot.add_chat_member(chat_id=STAFF_GROUP_ID, user_id=chat_id)
+        added = True
+        bot.send_message(chat_id, "✅ Ты был автоматически добавлен в группу модераторов FoggyLand!")
+        print(f"✅ Пользователь {chat_id} добавлен в группу")
+    except Exception as e:
+        print(f"Не удалось добавить напрямую: {e}")
+        # Если не получилось — создаём ссылку
         try:
-            bot.add_chat_member(chat_id=group_id, user_id=chat_id)
-            added_to_group = True
-            bot.send_message(chat_id, "✅ Ты был автоматически добавлен в группу модераторов FoggyLand!")
-        except Exception as e:
-            print(f"Не удалось добавить напрямую: {e}")
-            try:
-                invite = bot.create_chat_invite_link(
-                    chat_id=group_id,
-                    member_limit=1,
-                    name=f"Приглашение для {user_nick}"
-                )
-                personal_link = invite.invite_link
-                bot.send_message(
-                    chat_id=chat_id,
-                    text=(
-                        f"🎉 Поздравляю, {app['real_name']}!\n\n"
-                        f"Твоя заявка на мл. модератора одобрена!\n"
-                        f"Чтобы присоединиться к команде, перейди по ссылке:\n\n"
-                        f"🔗 {personal_link}\n\n"
-                        f"После входа представься: ник {user_nick}, роль — мл. модератор."
-                    ),
-                    disable_web_page_preview=True
-                )
-            except Exception as e2:
-                print(f"Не удалось создать ссылку: {e2}")
-                bot.send_message(chat_id, "⚠️ Не удалось добавить в группу. Администратор сделает это вручную.")
-    else:
-        bot.send_message(chat_id, "⚠️ ID группы не настроен. Администратор добавит вас вручную.")
+            invite = bot.create_chat_invite_link(
+                chat_id=STAFF_GROUP_ID,
+                member_limit=1,
+                name=f"Приглашение для {user_nick}"
+            )
+            bot.send_message(
+                chat_id=chat_id,
+                text=(
+                    f"🎉 Поздравляю, {app['real_name']}!\n\n"
+                    f"Твоя заявка на мл. модератора одобрена!\n"
+                    f"Чтобы присоединиться к команде, перейди по ссылке:\n\n"
+                    f"🔗 {invite.invite_link}\n\n"
+                    f"После входа представься: ник {user_nick}, роль — мл. модератор."
+                ),
+                disable_web_page_preview=True
+            )
+            print(f"✅ Отправлена ссылка-приглашение для {chat_id}")
+        except Exception as e2:
+            print(f"Не удалось создать ссылку: {e2}")
+            bot.send_message(chat_id, "⚠️ Не удалось добавить в группу. Администратор добавит вас вручную.")
 
-    if group_id:
+    # Уведомление в группу
+    if added:
         try:
             bot.send_message(
-                chat_id=group_id,
-                text=f"👋 Новый мл. модератор **{user_nick}** {'присоединился' if added_to_group else 'скоро присоединится'}!",
+                chat_id=STAFF_GROUP_ID,
+                text=f"👋 Новый мл. модератор **{user_nick}** присоединился!",
                 parse_mode="Markdown"
             )
         except:
@@ -450,4 +476,10 @@ if __name__ == "__main__":
         print(f"✅ Webhook установлен на {webhook_url}")
     except Exception as e:
         print(f"❌ Ошибка webhook: {e}")
+
+    print(f"✅ Бот настроен:")
+    print(f"   - Группа: {STAFF_GROUP_ID}")
+    print(f"   - Админ ID: {ADMIN_IDS}")
+    print(f"   - Админ username: @{ADMIN_USERNAME}")
+
     app.run(host="0.0.0.0", port=PORT)
