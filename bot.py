@@ -1,42 +1,33 @@
-import os
-import json
-import uuid
+import os, json, uuid
 from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import telebot
 from telebot import types
 
-# ========== КОНФИГУРАЦИЯ ==========
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN:
     raise ValueError("TELEGRAM_TOKEN не установлен!")
 
-# Твои данные (вшиты прямо в код)
-ADMIN_IDS = [5145474067]  # Твой Telegram ID
-ADMIN_USERNAME = "MrKronick"  # Твой username (без @)
-STAFF_GROUP_ID = -1003682731952  # ID твоей группы (с минусом!)
-STAFF_INVITE_LINK = "https://t.me/+mgRGzcfEHfE4YWUy"  # Твоя ссылка-приглашение
+ADMIN_IDS = [5145474067]
+ADMIN_USERNAME = "MrKronick"
+STAFF_GROUP_ID = -1003682731952
+STAFF_INVITE_LINK = "https://t.me/+mgRGzcfEHfE4YWUy"
 
 DATA_FILE = "ml_moderator_applications.json"
 PENDING_CODES_FILE = "pending_codes.json"
 PORT = int(os.environ.get("PORT", 10000))
-RENDER_URL = "https://moderfoggyland.onrender.com"   # ❗ свой Render URL
+RENDER_URL = "https://moderfoggyland.onrender.com"
 
-# ========== ХРАНИЛИЩЕ ==========
 def load_json(filename, default=None):
-    if default is None:
-        default = {}
+    if default is None: default = {}
     if os.path.exists(filename):
-        with open(filename, "r", encoding="utf-8") as f:
-            return json.load(f)
+        with open(filename, "r", encoding="utf-8") as f: return json.load(f)
     return default
 
 def save_json(filename, data):
-    with open(filename, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    with open(filename, "w", encoding="utf-8") as f: json.dump(data, f, ensure_ascii=False, indent=2)
 
-# ========== FLASK ==========
 app = Flask(__name__)
 CORS(app)
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
@@ -45,7 +36,6 @@ bot = telebot.TeleBot(TELEGRAM_TOKEN)
 def home():
     return "✅ Бот работает!"
 
-# ----- Приём заявки на мл. модератора -----
 @app.route("/ml-moderator-webhook", methods=["POST"])
 def ml_moderator_webhook():
     data = request.get_json(force=True) if request.is_json else request.form
@@ -57,81 +47,50 @@ def ml_moderator_webhook():
     chat_id = pending.pop(code)
     save_json(PENDING_CODES_FILE, pending)
 
-    real_name = data.get("real_name", "Игрок")
-    nick = data.get("minecraft_nick", "")
-    tg = data.get("telegram", "")
-    age = data.get("age", "")
-    experience = data.get("experience", "")
-    motivation = data.get("motivation", "")
-    agreement = data.get("agreement", "no")
-
     apps = load_json(DATA_FILE, [])
     new_app = {
-        "id": len(apps) + 1,
-        "chat_id": chat_id,
-        "real_name": real_name,
-        "minecraft_nick": nick,
-        "telegram_user": tg,
-        "age": age,
-        "experience": experience,
-        "motivation": motivation,
-        "rule_6_1": data.get("rule_6_1", ""),
-        "rule_8_1": data.get("rule_8_1", ""),
-        "rule_2_1": data.get("rule_2_1", ""),
-        "rule_3_2": data.get("rule_3_2", ""),
-        "rule_9_3": data.get("rule_9_3", ""),
-        "rule_2_2_2_3": data.get("rule_2_2_2_3", ""),
+        "id": len(apps) + 1, "chat_id": chat_id,
+        "real_name": data.get("real_name", "Игрок"),
+        "minecraft_nick": data.get("minecraft_nick", ""),
+        "telegram_user": data.get("telegram", ""),
+        "age": data.get("age", ""),
+        "experience": data.get("experience", ""),
+        "motivation": data.get("motivation", ""),
+        "rule_6_1": data.get("rule_6_1", ""), "rule_8_1": data.get("rule_8_1", ""),
+        "rule_2_1": data.get("rule_2_1", ""), "rule_3_2": data.get("rule_3_2", ""),
+        "rule_9_3": data.get("rule_9_3", ""), "rule_2_2_2_3": data.get("rule_2_2_2_3", ""),
         "rule_8_5": data.get("rule_8_5", ""),
-        "agreement": agreement,
-        "status": "pending",
-        "submitted_at": datetime.now().isoformat(),
-        "renamed_in_group": False
+        "agreement": data.get("agreement", "no"),
+        "status": "pending", "submitted_at": datetime.now().isoformat(), "renamed_in_group": False
     }
     apps.append(new_app)
     save_json(DATA_FILE, apps)
 
-    try:
-        bot.send_message(chat_id,
-                         f"Привет {real_name}! Твоя заявка на мл. модератора принята и будет рассмотрена в течение 3-5 дней. Ожидай.")
-    except Exception as e:
-        print(f"Ошибка отправки заявителю: {e}")
-
+    try: bot.send_message(chat_id, f"Привет {new_app['real_name']}! Твоя заявка на мл. модератора принята и будет рассмотрена в течение 3-5 дней. Ожидай.")
+    except: pass
     for admin_id in ADMIN_IDS:
-        try:
-            bot.send_message(admin_id,
-                             f"🆕 Заявка на мл. модератора #{new_app['id']} от {real_name}\n"
-                             f"Ник: {nick}\nTG: @{tg}")
-        except:
-            pass
-
+        try: bot.send_message(admin_id, f"🆕 Заявка на мл. модератора #{new_app['id']} от {new_app['real_name']}\nНик: {new_app['minecraft_nick']}\nTG: @{new_app.get('telegram_user','')}")
+        except: pass
     return jsonify({"status": "ok", "app_id": new_app["id"]})
 
-# ========== Telegram вебхук ==========
 @app.route("/telegram", methods=["POST"])
 def telegram_webhook():
     if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
+        update = telebot.types.Update.de_json(request.get_data().decode('utf-8'))
         bot.process_new_updates([update])
         return "OK"
     return "Bad request", 400
 
-# ========== ПРОВЕРКА ДОСТУПА ==========
 def is_admin(user_id=None, username=None):
-    """Проверяет, является ли пользователь владельцем."""
-    if user_id and user_id in ADMIN_IDS:
-        return True
-    if username and username.lower() == ADMIN_USERNAME.lower():
-        return True
+    if user_id and user_id in ADMIN_IDS: return True
+    if username and username.lower() == ADMIN_USERNAME.lower(): return True
     return False
 
-# ========== КЛАВИАТУРА ==========
 def main_keyboard():
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     keyboard.add(types.KeyboardButton("🔑 Получить код"), types.KeyboardButton("ℹ️ Помощь"))
     return keyboard
 
-# ========== ОБРАБОТЧИКИ КОМАНД ==========
 @bot.message_handler(commands=['start'])
 def start(message):
     chat_id = message.chat.id
@@ -139,347 +98,127 @@ def start(message):
     pending = load_json(PENDING_CODES_FILE)
     pending[code] = chat_id
     save_json(PENDING_CODES_FILE, pending)
-
-    text = (
-        "🌲 Добро пожаловать в FoggyLand!\n\n"
-        f"Твой код для заявки: `{code}`\n"
-        "Используй кнопки ниже или введи /start для нового кода."
-    )
-    bot.send_message(chat_id, text, parse_mode="Markdown", reply_markup=main_keyboard())
+    bot.send_message(chat_id, f"🌲 Добро пожаловать в FoggyLand!\n\nТвой код для заявки: `{code}`\nИспользуй кнопки ниже или введи /start для нового кода.", parse_mode="Markdown", reply_markup=main_keyboard())
 
 @bot.message_handler(func=lambda msg: msg.text == "🔑 Получить код")
-def button_get_code(message):
-    start(message)
+def button_get_code(message): start(message)
 
 @bot.message_handler(func=lambda msg: msg.text == "ℹ️ Помощь")
 def button_help(message):
-    text = (
-        "🌲 **FoggyLand Bot**\n\n"
-        "• **🔑 Получить код** – выдаёт код для подачи заявки на мл. модератора.\n"
-        "• **ℹ️ Помощь** – эта подсказка.\n\n"
-        "Правила сервера: https://rules.foggyland.ru\n"
-        "По всем вопросам обращайтесь к администрации."
-    )
-    bot.send_message(message.chat.id, text, parse_mode="Markdown")
+    bot.send_message(message.chat.id, "🌲 **FoggyLand Bot**\n\n• **🔑 Получить код** – выдаёт код для подачи заявки на мл. модератора.\n• **ℹ️ Помощь** – эта подсказка.\n\nПравила сервера: https://rules.foggyland.ru\nПо всем вопросам обращайтесь к администрации.", parse_mode="Markdown")
 
-# Админ-панель (скрытая команда)
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
     if not is_admin(user_id=message.from_user.id, username=message.from_user.username):
-        bot.reply_to(message, "⛔ У вас нет доступа к этой команде.")
-        return
+        bot.reply_to(message, "⛔ У вас нет доступа к этой команде."); return
     keyboard = types.InlineKeyboardMarkup(row_width=1)
-    keyboard.add(
-        types.InlineKeyboardButton("🛡️ Заявки на мл. модератора", callback_data="list_ml_moderator")
-    )
+    keyboard.add(types.InlineKeyboardButton("🛡️ Заявки на мл. модератора", callback_data="list_ml_moderator"))
     bot.send_message(message.chat.id, "🎛 Админ-панель FoggyLand", reply_markup=keyboard)
 
-# ========== КОМАНДА ДЛЯ СМЕНЫ ТЕГА В ГРУППЕ ==========
 @bot.message_handler(commands=['сменитьтег'])
 def change_tag(message):
-    """Команда для смены тега в группе: /сменитьтег @username НовыйТег"""
     if not is_admin(user_id=message.from_user.id, username=message.from_user.username):
-        bot.reply_to(message, "⛔ Только владелец (@MrKronick) может менять теги.")
-        return
-
+        bot.reply_to(message, "⛔ Только владелец (@MrKronick) может менять теги."); return
     args = message.text.split()
-    if len(args) < 3:
-        bot.reply_to(message, "Использование: /сменитьтег @username НовыйТег")
-        return
-
-    target_username = args[1].lstrip('@')
-    new_tag = " ".join(args[2:])
-
+    if len(args) < 3: bot.reply_to(message, "Использование: /сменитьтег @username НовыйТег"); return
+    target_username, new_tag = args[1].lstrip('@'), " ".join(args[2:])
     try:
-        # Получаем список администраторов (чтобы найти пользователя)
         admins = bot.get_chat_administrators(STAFF_GROUP_ID)
-        target_user = None
-        for admin in admins:
-            if admin.user.username and admin.user.username.lower() == target_username.lower():
-                target_user = admin.user
-                break
-
-        if not target_user:
-            bot.reply_to(message, f"❌ Пользователь @{target_username} не найден среди участников группы.")
-            return
-
-        # Устанавливаем кастомный титул
-        bot.set_chat_administrator_custom_title(
-            chat_id=STAFF_GROUP_ID,
-            user_id=target_user.id,
-            custom_title=new_tag
-        )
+        target_user = next((a.user for a in admins if a.user.username and a.user.username.lower() == target_username.lower()), None)
+        if not target_user: bot.reply_to(message, f"❌ Пользователь @{target_username} не найден."); return
+        bot.set_chat_administrator_custom_title(chat_id=STAFF_GROUP_ID, user_id=target_user.id, custom_title=new_tag)
         bot.reply_to(message, f"✅ Тег для @{target_username} изменён на: **{new_tag}**", parse_mode="Markdown")
-
-        # Обновляем заявку (если есть)
         apps = load_json(DATA_FILE, [])
-        updated = False
         for app in apps:
-            if app.get("chat_id") == target_user.id:
-                app["minecraft_nick"] = new_tag
-                app["group_nickname"] = new_tag
-                updated = True
-        if updated:
-            save_json(DATA_FILE, apps)
-            bot.send_message(message.chat.id, "📝 Запись в заявке также обновлена.")
+            if app.get("chat_id") == target_user.id: app["minecraft_nick"], app["group_nickname"] = new_tag, new_tag
+        save_json(DATA_FILE, apps)
+    except Exception as e: bot.reply_to(message, f"❌ Ошибка: {e}")
 
-    except Exception as e:
-        bot.reply_to(message, f"❌ Ошибка при смене тега: {e}")
-
-# ========== ОТСЛЕЖИВАНИЕ НОВЫХ УЧАСТНИКОВ ГРУППЫ ==========
 @bot.message_handler(content_types=['new_chat_members'])
 def on_new_member(message):
-    """Срабатывает, когда новый участник заходит в группу."""
-    group_id = message.chat.id
-
-    # Проверяем, что это наша группа
-    if group_id != STAFF_GROUP_ID:
-        return
-
+    if message.chat.id != STAFF_GROUP_ID: return
     for new_member in message.new_chat_members:
-        user_id = new_member.id
-        print(f"Новый участник в группе: {new_member.first_name} (ID: {user_id})")
-
-        # Ищем заявку этого пользователя
         apps = load_json(DATA_FILE, [])
         for app in apps:
-            if app.get("chat_id") == user_id and app["status"] == "accepted" and not app.get("renamed_in_group"):
+            if app.get("chat_id") == new_member.id and app["status"] == "accepted" and not app.get("renamed_in_group"):
                 mc_nick = app.get("minecraft_nick", "")
-
                 try:
-                    # Пытаемся установить кастомный титул (тег)
-                    bot.set_chat_administrator_custom_title(
-                        chat_id=group_id,
-                        user_id=user_id,
-                        custom_title=mc_nick
-                    )
-                    print(f"✅ Пользователю {user_id} установлен тег: {mc_nick}")
-                    app["renamed_in_group"] = True
-                    save_json(DATA_FILE, apps)
-
-                    bot.send_message(
-                        chat_id=group_id,
-                        text=f"👋 Добро пожаловать, **{app['real_name']}**!\n"
-                             f"Роль: Мл. Модератор\n"
-                             f"Тег: `{mc_nick}`\n\n"
-                             f"Представься команде!",
-                        parse_mode="Markdown"
-                    )
-                except Exception as e:
-                    print(f"Не удалось установить тег для {user_id}: {e}")
-                    # Пробуем через промоушн
+                    bot.set_chat_administrator_custom_title(chat_id=STAFF_GROUP_ID, user_id=new_member.id, custom_title=mc_nick)
+                    app["renamed_in_group"] = True; save_json(DATA_FILE, apps)
+                    bot.send_message(STAFF_GROUP_ID, f"👋 Добро пожаловать, **{app['real_name']}**!\nРоль: Мл. Модератор\nТег: `{mc_nick}`", parse_mode="Markdown")
+                except:
                     try:
-                        bot.promote_chat_member(
-                            chat_id=group_id,
-                            user_id=user_id,
-                            can_change_info=False,
-                            can_post_messages=False,
-                            can_edit_messages=False,
-                            can_delete_messages=False,
-                            can_invite_users=False,
-                            can_restrict_members=False,
-                            can_pin_messages=False,
-                            can_promote_members=False,
-                            can_manage_chat=False,
-                            can_manage_video_chats=False
-                        )
-                        bot.set_chat_administrator_custom_title(
-                            chat_id=group_id,
-                            user_id=user_id,
-                            custom_title=mc_nick
-                        )
-                        print(f"✅ Пользователю {user_id} установлен тег после промоушна: {mc_nick}")
-                        app["renamed_in_group"] = True
-                        save_json(DATA_FILE, apps)
-
-                        bot.send_message(
-                            chat_id=group_id,
-                            text=f"👋 Добро пожаловать, **{app['real_name']}**!\n"
-                                 f"Роль: Мл. Модератор\n"
-                                 f"Тег: `{mc_nick}`\n\n"
-                                 f"Представься команде!",
-                            parse_mode="Markdown"
-                        )
-                    except Exception as e2:
-                        print(f"Не удалось установить тег даже после промоушна: {e2}")
-
+                        bot.promote_chat_member(chat_id=STAFF_GROUP_ID, user_id=new_member.id, can_change_info=False, can_post_messages=False, can_edit_messages=False, can_delete_messages=False, can_invite_users=False, can_restrict_members=False, can_pin_messages=False, can_promote_members=False, can_manage_chat=False, can_manage_video_chats=False)
+                        bot.set_chat_administrator_custom_title(chat_id=STAFF_GROUP_ID, user_id=new_member.id, custom_title=mc_nick)
+                        app["renamed_in_group"] = True; save_json(DATA_FILE, apps)
+                        bot.send_message(STAFF_GROUP_ID, f"👋 Добро пожаловать, **{app['real_name']}**!\nРоль: Мл. Модератор\nТег: `{mc_nick}`", parse_mode="Markdown")
+                    except: pass
                 break
 
-# ========== ОБРАБОТКА ЗАЯВОК (мл. модератор) ==========
 @bot.callback_query_handler(func=lambda call: True)
 def callback_handler(call):
-    chat_id = call.message.chat.id
     if not is_admin(user_id=call.from_user.id, username=call.from_user.username):
-        bot.answer_callback_query(call.id, "⛔ Нет доступа.")
-        return
+        bot.answer_callback_query(call.id, "⛔ Нет доступа."); return
+    data, apps = call.data, load_json(DATA_FILE, [])
+    if data == "list_ml_moderator": show_ml_list(call, apps)
+    elif data.startswith("ml_view_"): 
+        app = next((a for a in apps if a["id"] == int(data.split("_")[2])), None)
+        if app: show_ml_detail(call, app)
+    elif data.startswith("ml_accept_"): accept_ml_app(call, int(data.split("_")[2]), apps)
+    elif data.startswith("ml_reject_"): reject_ml_app(call, int(data.split("_")[2]), apps)
+    elif data == "back_to_admin": admin_panel(call.message)
 
-    data = call.data
-
-    if data == "list_ml_moderator":
-        apps = load_json(DATA_FILE, [])
-        show_ml_list(call, apps)
-        return
-
-    if data.startswith("ml_view_"):
-        app_id = int(data.split("_")[2])
-        apps = load_json(DATA_FILE, [])
-        app = next((a for a in apps if a["id"] == app_id), None)
-        if app:
-            show_ml_detail(call, app)
-        return
-
-    if data.startswith("ml_accept_"):
-        app_id = int(data.split("_")[2])
-        apps = load_json(DATA_FILE, [])
-        accept_ml_app(call, app_id, apps)
-        return
-
-    if data.startswith("ml_reject_"):
-        app_id = int(data.split("_")[2])
-        apps = load_json(DATA_FILE, [])
-        reject_ml_app(call, app_id, apps)
-        return
-
-    if data == "back_to_admin":
-        admin_panel(call.message)
-        return
-
-# ========== ФУНКЦИИ ДЛЯ ЗАЯВОК МЛ. МОДЕРАТОРА ==========
 def show_ml_list(call, apps):
-    if not apps:
-        bot.edit_message_text("📭 Заявок на мл. модератора нет.", call.message.chat.id, call.message.message_id)
-        return
-    text = "🛡️ Заявки на мл. модератора:\n\n"
-    keyboard = types.InlineKeyboardMarkup(row_width=1)
+    if not apps: bot.edit_message_text("📭 Заявок на мл. модератора нет.", call.message.chat.id, call.message.message_id); return
+    text, keyboard = "🛡️ Заявки на мл. модератора:\n\n", types.InlineKeyboardMarkup(row_width=1)
     for a in apps[:10]:
         emoji = "✅" if a["status"] == "accepted" else "❌" if a["status"] == "rejected" else "⏳"
         text += f"{emoji} #{a['id']} | {a['real_name']} | {a['minecraft_nick']}\n"
-        keyboard.add(types.InlineKeyboardButton(
-            f"{emoji} #{a['id']} - {a['real_name']}",
-            callback_data=f"ml_view_{a['id']}"
-        ))
+        keyboard.add(types.InlineKeyboardButton(f"{emoji} #{a['id']} - {a['real_name']}", callback_data=f"ml_view_{a['id']}"))
     keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data="back_to_admin"))
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
 
 def show_ml_detail(call, app):
     status = "✅ Принята" if app["status"] == "accepted" else "❌ Отклонена" if app["status"] == "rejected" else "⏳ Ожидает"
-    text = (
-        f"🛡️ Заявка на мл. модератора #{app['id']}\n\n"
-        f"👤 Имя: {app['real_name']}\n"
-        f"⛏ Ник: {app['minecraft_nick']}\n"
-        f"📬 Telegram: @{app.get('telegram_user','')}\n"
-        f"🎂 Возраст: {app.get('age','')}\n"
-        f"📊 Статус: {status}\n"
-        f"🤝 Согласие с правилами: {'Да' if app.get('agreement') == 'yes' else 'Нет'}\n\n"
-        f"🛠 Опыт: {app.get('experience','—')}\n"
-        f"💬 Мотивация: {app.get('motivation','—')}\n\n"
-        f"📜 Ответы на правила:\n"
-        f"1. Читы (6.1): {app.get('rule_6_1','—')}\n"
-        f"2. Гриферство (8.1): {app.get('rule_8_1','—')}\n"
-        f"3. Оскорбления (2.1): {app.get('rule_2_1','—')}\n"
-        f"4. Администраторам (3.2): {app.get('rule_3_2','—')}\n"
-        f"5. Чужая территория (9.3): {app.get('rule_9_3','—')}\n"
-        f"6. Спам/флуд (2.2-2.3): {app.get('rule_2_2_2_3','—')}\n"
-        f"7. Обход бана (8.5): {app.get('rule_8_5','—')}"
-    )
+    text = f"🛡️ Заявка на мл. модератора #{app['id']}\n\n👤 Имя: {app['real_name']}\n⛏ Ник: {app['minecraft_nick']}\n📬 Telegram: @{app.get('telegram_user','')}\n🎂 Возраст: {app.get('age','')}\n📊 Статус: {status}\n🤝 Согласие с правилами: {'Да' if app.get('agreement') == 'yes' else 'Нет'}\n\n🛠 Опыт: {app.get('experience','—')}\n💬 Мотивация: {app.get('motivation','—')}\n\n📜 Ответы на правила:\n1. Читы (6.1): {app.get('rule_6_1','—')}\n2. Гриферство (8.1): {app.get('rule_8_1','—')}\n3. Оскорбления (2.1): {app.get('rule_2_1','—')}\n4. Администраторам (3.2): {app.get('rule_3_2','—')}\n5. Чужая территория (9.3): {app.get('rule_9_3','—')}\n6. Спам/флуд (2.2-2.3): {app.get('rule_2_2_2_3','—')}\n7. Обход бана (8.5): {app.get('rule_8_5','—')}"
     keyboard = types.InlineKeyboardMarkup(row_width=2)
     if app["status"] == "pending":
-        keyboard.add(
-            types.InlineKeyboardButton("✅ Принять", callback_data=f"ml_accept_{app['id']}"),
-            types.InlineKeyboardButton("❌ Отклонить", callback_data=f"ml_reject_{app['id']}")
-        )
+        keyboard.add(types.InlineKeyboardButton("✅ Принять", callback_data=f"ml_accept_{app['id']}"), types.InlineKeyboardButton("❌ Отклонить", callback_data=f"ml_reject_{app['id']}"))
     keyboard.add(types.InlineKeyboardButton("🔙 Назад", callback_data="list_ml_moderator"))
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
 
 def accept_ml_app(call, app_id, apps):
     app = next((a for a in apps if a["id"] == app_id), None)
-    if not app or app["status"] != "pending":
-        bot.edit_message_text("❌ Заявка не найдена или уже обработана.", call.message.chat.id, call.message.message_id)
-        return
-
+    if not app or app["status"] != "pending": bot.edit_message_text("❌ Заявка не найдена или уже обработана.", call.message.chat.id, call.message.message_id); return
     app["status"] = "accepted"
-    chat_id = app["chat_id"]
-    user_nick = app.get("minecraft_nick", "игрок")
-
-    # ---------- ДОБАВЛЕНИЕ В ГРУППУ ----------
+    chat_id, user_nick = app["chat_id"], app.get("minecraft_nick", "игрок")
     added = False
     try:
-        # Сначала пробуем добавить напрямую
         bot.add_chat_member(chat_id=STAFF_GROUP_ID, user_id=chat_id)
         added = True
         bot.send_message(chat_id, "✅ Ты был автоматически добавлен в группу модераторов FoggyLand!")
-        print(f"✅ Пользователь {chat_id} добавлен в группу")
-    except Exception as e:
-        print(f"Не удалось добавить напрямую: {e}")
-        # Если не получилось — создаём ссылку
+    except:
         try:
-            invite = bot.create_chat_invite_link(
-                chat_id=STAFF_GROUP_ID,
-                member_limit=1,
-                name=f"Приглашение для {user_nick}"
-            )
-            bot.send_message(
-                chat_id=chat_id,
-                text=(
-                    f"🎉 Поздравляю, {app['real_name']}!\n\n"
-                    f"Твоя заявка на мл. модератора одобрена!\n"
-                    f"Чтобы присоединиться к команде, перейди по ссылке:\n\n"
-                    f"🔗 {invite.invite_link}\n\n"
-                    f"После входа представься: ник {user_nick}, роль — мл. модератор."
-                ),
-                disable_web_page_preview=True
-            )
-            print(f"✅ Отправлена ссылка-приглашение для {chat_id}")
-        except Exception as e2:
-            print(f"Не удалось создать ссылку: {e2}")
-            bot.send_message(chat_id, "⚠️ Не удалось добавить в группу. Администратор добавит вас вручную.")
-
-    # Уведомление в группу
+            invite = bot.create_chat_invite_link(chat_id=STAFF_GROUP_ID, member_limit=1, name=f"Приглашение для {user_nick}")
+            bot.send_message(chat_id, f"🎉 Поздравляю, {app['real_name']}!\n\nТвоя заявка на мл. модератора одобрена!\nЧтобы присоединиться к команде, перейди по ссылке:\n\n🔗 {invite.invite_link}\n\nПосле входа представься: ник {user_nick}, роль — мл. модератор.", disable_web_page_preview=True)
+        except: bot.send_message(chat_id, "⚠️ Не удалось добавить в группу. Администратор добавит вас вручную.")
     if added:
-        try:
-            bot.send_message(
-                chat_id=STAFF_GROUP_ID,
-                text=f"👋 Новый мл. модератор **{user_nick}** присоединился!",
-                parse_mode="Markdown"
-            )
-        except:
-            pass
-
+        try: bot.send_message(STAFF_GROUP_ID, f"👋 Новый мл. модератор **{user_nick}** присоединился!", parse_mode="Markdown")
+        except: pass
     save_json(DATA_FILE, apps)
-
     bot.edit_message_text(f"✅ Заявка #{app_id} принята!", call.message.chat.id, call.message.message_id)
 
 def reject_ml_app(call, app_id, apps):
     app = next((a for a in apps if a["id"] == app_id), None)
-    if not app or app["status"] != "pending":
-        bot.edit_message_text("❌ Заявка не найдена или уже обработана.", call.message.chat.id, call.message.message_id)
-        return
+    if not app or app["status"] != "pending": bot.edit_message_text("❌ Заявка не найдена или уже обработана.", call.message.chat.id, call.message.message_id); return
     app["status"] = "rejected"
     save_json(DATA_FILE, apps)
-    try:
-        bot.send_message(app["chat_id"],
-                         f"Привет {app['real_name']}. К сожалению, твоя заявка на мл. модератора не прошла. Можешь подать повторно через 7 дней.")
-        bot.edit_message_text(f"❌ Заявка #{app_id} отклонена! Уведомление отправлено.", call.message.chat.id, call.message.message_id)
-    except Exception as e:
-        bot.edit_message_text(f"⚠️ Ошибка отправки: {e}", call.message.chat.id, call.message.message_id)
+    try: bot.send_message(app["chat_id"], f"Привет {app['real_name']}. К сожалению, твоя заявка на мл. модератора не прошла. Можешь подать повторно через 7 дней.")
+    except: pass
+    bot.edit_message_text(f"❌ Заявка #{app_id} отклонена!", call.message.chat.id, call.message.message_id)
 
-# ========== ЗАПУСК ==========
 if __name__ == "__main__":
-    try:
-        bot.remove_webhook()
-        print("🧹 Старый webhook удалён")
-    except:
-        pass
-    webhook_url = f"{RENDER_URL}/telegram"
-    try:
-        bot.set_webhook(url=webhook_url)
-        print(f"✅ Webhook установлен на {webhook_url}")
-    except Exception as e:
-        print(f"❌ Ошибка webhook: {e}")
-
-    print(f"✅ Бот настроен:")
-    print(f"   - Группа: {STAFF_GROUP_ID}")
-    print(f"   - Админ ID: {ADMIN_IDS}")
-    print(f"   - Админ username: @{ADMIN_USERNAME}")
-
+    try: bot.remove_webhook()
+    except: pass
+    bot.set_webhook(url=f"{RENDER_URL}/telegram")
     app.run(host="0.0.0.0", port=PORT)
