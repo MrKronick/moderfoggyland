@@ -15,7 +15,8 @@ STAFF_INVITE_LINK = "https://t.me/+mgRGzcfEHfE4YWUy"
 
 DATA_FILE = "ml_moderator_applications.json"
 PENDING_CODES_FILE = "pending_codes.json"
-PENDING_TAGS_FILE = "pending_tags.json"  # очередь на выдачу тега
+PENDING_TAGS_FILE = "pending_tags.json"
+REVIEWS_FILE = "reviews.json"
 PORT = int(os.environ.get("PORT", 10000))
 RENDER_URL = "https://moderfoggyland.onrender.com"
 
@@ -40,9 +41,7 @@ def ml_moderator_webhook():
     data = request.get_json(force=True) if request.is_json else request.form
     code = data.get("verification_code", "").strip().upper()
     pending = load_json(PENDING_CODES_FILE)
-    if not code or code not in pending:
-        print("[ERROR] Неверный код подтверждения:", code)
-        return jsonify({"error": "Неверный код"}), 400
+    if not code or code not in pending: return jsonify({"error": "Неверный код"}), 400
     chat_id = pending.pop(code)
     save_json(PENDING_CODES_FILE, pending)
     apps = load_json(DATA_FILE, [])
@@ -74,6 +73,11 @@ def telegram_webhook():
         return "OK"
     return "Bad request", 400
 
+@app.route("/api/reviews")
+def api_reviews():
+    reviews = load_json(REVIEWS_FILE, [])
+    return jsonify(reviews)
+
 def is_admin(user_id=None, username=None):
     if user_id and user_id in ADMIN_IDS: return True
     if username and username.lower() == ADMIN_USERNAME.lower(): return True
@@ -82,6 +86,7 @@ def is_admin(user_id=None, username=None):
 def main_keyboard():
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     keyboard.add(types.KeyboardButton("🔑 Получить код"), types.KeyboardButton("ℹ️ Помощь"))
+    keyboard.add(types.KeyboardButton("💬 Оставить отзыв"))
     return keyboard
 
 @bot.message_handler(commands=['start'])
@@ -98,7 +103,41 @@ def button_get_code(message): start(message)
 
 @bot.message_handler(func=lambda msg: msg.text == "ℹ️ Помощь")
 def button_help(message):
-    bot.send_message(message.chat.id, "🌲 **FoggyLand Bot**\n\n• **🔑 Получить код** – выдаёт код для подачи заявки на мл. модератора.\n• **ℹ️ Помощь** – эта подсказка.\n\nПравила сервера: https://rules.foggyland.ru\nПо всем вопросам обращайтесь к администрации.", parse_mode="Markdown")
+    bot.send_message(message.chat.id, "🌲 **FoggyLand Bot**\n\n• 🔑 Получить код – для заявки на мл. модератора.\n• 💬 Оставить отзыв – поделиться мнением о сервере.\n• ℹ️ Помощь – эта подсказка.\n\nПравила: https://rules.foggyland.ru\nПо всем вопросам обращайтесь к администрации.", parse_mode="Markdown")
+
+# ---------- ОТЗЫВЫ ----------
+@bot.message_handler(commands=['отзыв'])
+@bot.message_handler(func=lambda msg: msg.text == "💬 Оставить отзыв")
+def ask_review(message):
+    chat_id = message.chat.id
+    sent = bot.send_message(chat_id, "Напиши свой отзыв о сервере, боте или команде. Он будет опубликован на сайте отзывов.")
+    bot.register_next_step_handler(sent, process_review)
+
+def process_review(message):
+    chat_id = message.chat.id
+    text = message.text.strip()
+    if len(text) < 3:
+        bot.send_message(chat_id, "❌ Отзыв слишком короткий. Попробуй ещё раз: /отзыв")
+        return
+    if len(text) > 300:
+        bot.send_message(chat_id, "❌ Отзыв слишком длинный (макс. 300 символов).")
+        return
+
+    reviews = load_json(REVIEWS_FILE, [])
+    review = {
+        "id": len(reviews) + 1,
+        "chat_id": chat_id,
+        "username": message.chat.username or "аноним",
+        "text": text,
+        "date": datetime.now().strftime("%d.%m.%Y %H:%M")
+    }
+    reviews.append(review)
+    save_json(REVIEWS_FILE, reviews)
+
+    bot.send_message(chat_id, "✨ Спасибо за отзыв! Он появится в облаке отзывов на сайте.")
+    for admin_id in ADMIN_IDS:
+        try: bot.send_message(admin_id, f"💬 Новый отзыв от @{review['username']}:\n{text}")
+        except: pass
 
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
@@ -121,9 +160,7 @@ def change_tag(message):
         if not target_user: bot.reply_to(message, f"❌ Пользователь @{target_username} не найден."); return
         bot.set_chat_administrator_custom_title(chat_id=STAFF_GROUP_ID, user_id=target_user.id, custom_title=new_tag)
         bot.reply_to(message, f"✅ Тег для @{target_username} изменён на: **{new_tag}**", parse_mode="Markdown")
-    except Exception as e:
-        print(f"[ERROR] change_tag: {e}")
-        bot.reply_to(message, f"❌ Ошибка: {e}")
+    except Exception as e: bot.reply_to(message, f"❌ Ошибка: {e}")
 
 @bot.message_handler(content_types=['new_chat_members'])
 def on_new_member(message):
@@ -132,7 +169,6 @@ def on_new_member(message):
         print(f"[LOG] Игнорируем — не наша группа (нужна {STAFF_GROUP_ID}, пришла {message.chat.id})")
         return
 
-    # Загружаем очередь тегов
     pending_tags = load_json(PENDING_TAGS_FILE, [])
     apps = load_json(DATA_FILE, [])
 
@@ -140,7 +176,6 @@ def on_new_member(message):
         user_id = new_member.id
         print(f"[LOG] Обрабатываем пользователя {user_id}")
 
-        # 1. Проверяем, есть ли он в очереди тегов
         tag_entry = next((t for t in pending_tags if t["chat_id"] == user_id), None)
         if tag_entry:
             nick = tag_entry["nick"]
@@ -153,7 +188,6 @@ def on_new_member(message):
                 bot.send_message(STAFF_GROUP_ID, f"👋 Добро пожаловать! Твой тег: **{nick}**", parse_mode="Markdown")
             except Exception as e:
                 print(f"[ERROR] Не удалось установить тег из очереди: {e}")
-                # Пробуем через промоушн
                 try:
                     bot.promote_chat_member(chat_id=STAFF_GROUP_ID, user_id=user_id,
                         can_change_info=False, can_post_messages=False, can_edit_messages=False,
@@ -168,7 +202,6 @@ def on_new_member(message):
                 except Exception as e2:
                     print(f"[ERROR] Не удалось даже после промоушна: {e2}")
         else:
-            # 2. Ищем в заявках (на случай, если не записалось в очередь)
             app = next((a for a in apps if a.get("chat_id") == user_id and a["status"] == "accepted" and not a.get("renamed_in_group")), None)
             if app:
                 nick = app.get("minecraft_nick", "")
@@ -181,7 +214,6 @@ def on_new_member(message):
                     bot.send_message(STAFF_GROUP_ID, f"👋 Добро пожаловать! Твой тег: **{nick}**", parse_mode="Markdown")
                 except Exception as e:
                     print(f"[ERROR] Установка тега через заявку: {e}")
-                    # Промоушн
                     try:
                         bot.promote_chat_member(chat_id=STAFF_GROUP_ID, user_id=user_id,
                             can_change_info=False, can_post_messages=False, can_edit_messages=False,
@@ -259,13 +291,11 @@ def accept_ml_app(call, app_id, apps):
     chat_id, user_nick = app["chat_id"], app.get("minecraft_nick", "игрок")
     print(f"[LOG] Принимаем заявку #{app_id}, chat_id={chat_id}, ник={user_nick}")
 
-    # Записываем в очередь тегов (чтобы точно выдать при входе)
     pending_tags = load_json(PENDING_TAGS_FILE, [])
     pending_tags.append({"chat_id": chat_id, "nick": user_nick})
     save_json(PENDING_TAGS_FILE, pending_tags)
     print(f"[LOG] Добавлен в очередь тегов: {chat_id} -> {user_nick}")
 
-    # Пробуем добавить напрямую
     try:
         bot.add_chat_member(chat_id=STAFF_GROUP_ID, user_id=chat_id)
         print(f"[OK] Пользователь {chat_id} добавлен напрямую!")
