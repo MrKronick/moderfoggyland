@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>FoggyLand – Облако отзывов</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at 30% 40%, #1e3a1e, #0a1a0a);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      color: #c8e0c0;
+      position: relative;
+      overflow-x: hidden;
+    }
+    /* туманный фон */
+    .fog { position: fixed; top:0;left:0;width:100%;height:100%; background: radial-gradient(circle at 20% 30%, rgba(180,220,160,0.2) 0%, transparent 70%); z-index:0; }
+    h1 {
+      text-align: center;
+      font-size: 2.8rem;
+      font-weight: 800;
+      background: linear-gradient(180deg, #d4f0c0, #7fa86b);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 2rem;
+      position: relative; z-index: 2;
+      text-shadow: 0 0 20px rgba(80,150,60,0.5);
+    }
+    .cloud-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1.5rem;
+      max-width: 1000px;
+      margin: 0 auto;
+      position: relative; z-index: 2;
+    }
+    .review-card {
+      background: rgba(20,30,18,0.7);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border: 1px solid rgba(120,170,80,0.4);
+      border-radius: 2rem;
+      padding: 1.2rem 1.5rem;
+      max-width: 250px;
+      flex: 1 1 200px;
+      box-shadow: 0 15px 30px -10px rgba(0,0,0,0.5);
+      animation: float 12s infinite alternate ease-in-out;
+      transition: transform 0.3s, box-shadow 0.3s;
+      cursor: default;
+    }
+    .review-card:hover {
+      transform: translateY(-8px) scale(1.03);
+      box-shadow: 0 25px 40px -10px rgba(60,120,40,0.6);
+    }
+    .review-card:nth-child(odd) { animation-duration: 14s; animation-delay: -3s; }
+    .review-card:nth-child(3n) { animation-duration: 16s; animation-delay: -6s; }
+    .review-card:nth-child(5n+2) { animation-duration: 18s; }
+
+    @keyframes float {
+      0% { transform: translateY(0px) rotate(0.5deg); }
+      50% { transform: translateY(-12px) rotate(-0.5deg); }
+      100% { transform: translateY(5px) rotate(0.3deg); }
+    }
+
+    .review-text {
+      font-size: 1rem;
+      line-height: 1.4;
+      margin-bottom: 0.7rem;
+      word-break: break-word;
+      color: #e6f5da;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
+    .review-meta {
+      font-size: 0.75rem;
+      color: #a0c090;
+      display: flex;
+      justify-content: space-between;
+    }
+    .empty {
+      text-align: center;
+      font-size: 1.3rem;
+      color: #80a070;
+      margin-top: 4rem;
+    }
+    a.back {
+      position: absolute; top: 1rem; left: 1rem; z-index: 3;
+      color: #b8d8a8; text-decoration: none; background: rgba(0,0,0,0.3);
+      padding: 0.5rem 1rem; border-radius: 2rem; backdrop-filter: blur(5px);
+    }
+  </style>
+</head>
+<body>
+<div class="fog"></div>
+<a href="/" class="back">← Назад</a>
+<h1>☁️ Облако отзывов FoggyLand</h1>
+<div class="cloud-container" id="cloud"></div>
+<div class="empty" id="empty" style="display:none;">Пока нет отзывов. Будь первым!</div>
+
+<script>
+  const API_URL = 'https://moderfoggyland.onrender.com/api/reviews';  // тот же Render
+  async function loadReviews() {
+    try {
+      const res = await fetch(API_URL);
+      const reviews = await res.json();
+      const container = document.getElementById('cloud');
+      const emptyMsg = document.getElementById('empty');
+      if (!reviews || reviews.length === 0) {
+        emptyMsg.style.display = 'block';
+        return;
+      }
+      emptyMsg.style.display = 'none';
+      // Перемешиваем для красоты
+      reviews.sort(() => Math.random() - 0.5);
+      reviews.forEach(r => {
+        const card = document.createElement('div');
+        card.className = 'review-card';
+        card.innerHTML = `
+          <div class="review-text">${escapeHtml(r.text)}</div>
+          <div class="review-meta">
+            <span>@${escapeHtml(r.username)}</span>
+            <span>${r.date}</span>
+          </div>`;
+        container.appendChild(card);
+      });
+    } catch (e) {
+      console.error(e);
+      document.getElementById('empty').style.display = 'block';
+      document.getElementById('empty').textContent = 'Ошибка загрузки отзывов :(';
+    }
+  }
+  function escapeHtml(text) {
+    return text.replace(/[&<>"]/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      if (m === '"') return '&quot;';
+      return m;
+    });
+  }
+  loadReviews();
+</script>
+</body>
+</html>
