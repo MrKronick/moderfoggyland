@@ -5,22 +5,24 @@ from flask_cors import CORS
 import telebot
 from telebot import types
 
+# ---------- КОНФИГУРАЦИЯ ----------
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN: raise ValueError("TELEGRAM_TOKEN не установлен!")
 
-ADMIN_IDS = [5145474067]
-ADMIN_USERNAME = "MrKronick"
-STAFF_GROUP_ID = -1003682731952
+ADMIN_IDS = [5145474067]                 # Твой Telegram ID
+ADMIN_USERNAME = "MrKronick"            # Твой username
+STAFF_GROUP_ID = -1003682731952         # ID группы модераторов
 STAFF_INVITE_LINK = "https://t.me/+mgRGzcfEHfE4YWUy"
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "foggy2026")
 
 DATA_FILE = "ml_moderator_applications.json"
 PENDING_CODES_FILE = "pending_codes.json"
 PENDING_TAGS_FILE = "pending_tags.json"
-MESSAGES_FILE = "user_messages.json"
+USER_MESSAGES_FILE = "user_messages.json"   # лог сообщений для живой поддержки
 PORT = int(os.environ.get("PORT", 10000))
 RENDER_URL = "https://moderfoggyland.onrender.com"
 
+# ---------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----------
 def load_json(filename, default=None):
     if default is None: default = {}
     if os.path.exists(filename):
@@ -30,11 +32,12 @@ def load_json(filename, default=None):
 def save_json(filename, data):
     with open(filename, "w", encoding="utf-8") as f: json.dump(data, f, ensure_ascii=False, indent=2)
 
+# ---------- FLASK ----------
 app = Flask(__name__)
 CORS(app)
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
-# ---------- ВСТРОЕННАЯ АДМИН-ПАНЕЛЬ ----------
+# ---------- ВСТРОЕННАЯ АДМИН-ПАНЕЛЬ (HTML) ----------
 ADMIN_PANEL_HTML = r"""<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -97,7 +100,6 @@ ADMIN_PANEL_HTML = r"""<!DOCTYPE html>
       box-shadow: 0 30px 50px -20px rgba(0,0,0,0.7), 0 0 0 1px rgba(100,150,90,0.4);
       border: 1px solid rgba(120,170,80,0.3);
       overflow-x: auto;
-      margin-bottom: 2rem;
     }
     table {
       width: 100%;
@@ -142,8 +144,6 @@ ADMIN_PANEL_HTML = r"""<!DOCTYPE html>
     .btn-reject:hover { background: #8e3e3e; transform: scale(0.97); }
     .btn-details { background: rgba(80,130,60,0.3); color: #c0e0b0; backdrop-filter: blur(5px); }
     .btn-details:hover { background: rgba(80,130,60,0.5); }
-    .btn-messages { background: rgba(80,130,160,0.3); color: #c0d0e0; backdrop-filter: blur(5px); }
-    .btn-messages:hover { background: rgba(80,130,160,0.5); }
     .modal {
       display: none;
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -174,18 +174,13 @@ ADMIN_PANEL_HTML = r"""<!DOCTYPE html>
 <body>
 <div class="container">
   <h1>👑 FoggyLand</h1>
-  <div class="subtitle">Админ-панель</div>
-
-  <div class="table-wrapper" id="apps-container">
+  <div class="subtitle">Админ-панель заявок на мл. модератора</div>
+  <div class="table-wrapper" id="table-container">
     <div class="loading">Загрузка заявок...</div>
   </div>
-
-  <div style="text-align:center; margin-bottom:2rem;">
-    <button class="btn btn-messages" onclick="loadMessages()">💬 Сообщения от пользователей</button>
-  </div>
-  <div class="table-wrapper" id="messages-container" style="display:none;"></div>
 </div>
 
+<!-- Модальное окно для деталей -->
 <div class="modal" id="detailsModal">
   <div class="modal-content" id="modalContent"></div>
 </div>
@@ -197,17 +192,17 @@ ADMIN_PANEL_HTML = r"""<!DOCTYPE html>
   async function fetchApps() {
     try {
       const res = await fetch(`${API_BASE}/api/applications?password=${PASSWORD}`);
-      if (!res.ok) throw new Error('Ошибка');
+      if (!res.ok) throw new Error('Ошибка доступа');
       return await res.json();
     } catch(e) {
-      document.getElementById('apps-container').innerHTML = '<div class="empty">❌ Ошибка загрузки</div>';
+      document.getElementById('table-container').innerHTML = '<div class="empty">❌ Ошибка загрузки</div>';
       return [];
     }
   }
 
-  async function renderApps() {
+  async function renderTable() {
     const apps = await fetchApps();
-    const container = document.getElementById('apps-container');
+    const container = document.getElementById('table-container');
     if (!apps.length) {
       container.innerHTML = '<div class="empty">📭 Заявок пока нет</div>';
       return;
@@ -216,19 +211,20 @@ ADMIN_PANEL_HTML = r"""<!DOCTYPE html>
       <th>ID</th><th>Имя</th><th>Ник Minecraft</th><th>Telegram</th><th>Статус</th><th>Действия</th>
     </tr></thead><tbody>`;
     apps.forEach(app => {
-      const s = app.status;
-      const badge = s === 'accepted' ? 'badge-accepted' : (s === 'rejected' ? 'badge-rejected' : 'badge-pending');
-      const txt = s === 'accepted' ? '✅ Принята' : (s === 'rejected' ? '❌ Отклонена' : '⏳ Ожидает');
+      const statusClass = app.status === 'accepted' ? 'badge-accepted' : (app.status === 'rejected' ? 'badge-rejected' : 'badge-pending');
+      const statusText = app.status === 'accepted' ? '✅ Принята' : (app.status === 'rejected' ? '❌ Отклонена' : '⏳ Ожидает');
       html += `<tr>
         <td>#${app.id}</td>
-        <td>${esc(app.real_name)}</td>
-        <td>${esc(app.minecraft_nick)}</td>
-        <td>@${esc(app.telegram_user || '')}</td>
-        <td><span class="badge ${badge}">${txt}</span></td>
+        <td>${escHtml(app.real_name)}</td>
+        <td>${escHtml(app.minecraft_nick)}</td>
+        <td>@${escHtml(app.telegram_user || '')}</td>
+        <td><span class="badge ${statusClass}">${statusText}</span></td>
         <td>
           <button class="btn btn-details" onclick="showDetails(${app.id})">📋</button>
-          ${s === 'pending' ? `<button class="btn btn-accept" onclick="act(${app.id},'accept')">✅</button>
-           <button class="btn btn-reject" onclick="act(${app.id},'reject')">❌</button>` : ''}
+          ${app.status === 'pending' ? `
+            <button class="btn btn-accept" onclick="act(${app.id},'accept')">✅</button>
+            <button class="btn btn-reject" onclick="act(${app.id},'reject')">❌</button>
+          ` : ''}
         </td>
       </tr>`;
     });
@@ -236,96 +232,71 @@ ADMIN_PANEL_HTML = r"""<!DOCTYPE html>
     container.innerHTML = html;
   }
 
-  function esc(t) { return (t||'').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[m]); }
+  function escHtml(text) {
+    if (!text) return '';
+    return text.replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[m]);
+  }
 
   async function act(id, action) {
-    if (!confirm(`Точно ${action==='accept'?'принять':'отклонить'} заявку #${id}?`)) return;
+    if (!confirm(`Точно ${action === 'accept' ? 'принять' : 'отклонить'} заявку #${id}?`)) return;
     try {
-      const r = await fetch(`${API_BASE}/api/${action}`, {
+      const res = await fetch(`${API_BASE}/api/${action}`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({id, password: PASSWORD})
       });
-      const d = await r.json();
-      if (r.ok) { alert('Готово!'); renderApps(); }
-      else alert('Ошибка: ' + (d.error || ''));
-    } catch(e) { alert('Сетевая ошибка'); }
+      const data = await res.json();
+      if (res.ok) {
+        alert('Готово!');
+        renderTable();
+      } else {
+        alert('Ошибка: ' + (data.error || 'неизвестно'));
+      }
+    } catch(e) {
+      alert('Сетевая ошибка');
+    }
   }
 
   async function showDetails(id) {
     const apps = await fetchApps();
     const app = apps.find(a => a.id === id);
     if (!app) return;
-    const mc = document.getElementById('modalContent');
-    mc.innerHTML = `<button class="close-btn" onclick="document.getElementById('detailsModal').classList.remove('active')">✖</button>
+    const content = document.getElementById('modalContent');
+    content.innerHTML = `
+      <button class="close-btn" onclick="closeModal()">✖</button>
       <h3>Заявка #${app.id}</h3>
-      <p><b>Имя:</b> ${esc(app.real_name)}</p>
-      <p><b>Ник:</b> ${esc(app.minecraft_nick)}</p>
-      <p><b>Telegram:</b> @${esc(app.telegram_user || '')}</p>
-      <p><b>Возраст:</b> ${esc(app.age || '')}</p>
-      <p><b>Опыт:</b> ${esc(app.experience || '—')}</p>
-      <p><b>Мотивация:</b> ${esc(app.motivation || '—')}</p>
+      <p><b>Имя:</b> ${escHtml(app.real_name)}</p>
+      <p><b>Ник:</b> ${escHtml(app.minecraft_nick)}</p>
+      <p><b>Telegram:</b> @${escHtml(app.telegram_user || '')}</p>
+      <p><b>Возраст:</b> ${escHtml(app.age || '')}</p>
+      <p><b>Статус:</b> ${app.status === 'accepted' ? 'Принята' : (app.status === 'rejected' ? 'Отклонена' : 'Ожидает')}</p>
+      <p><b>Опыт:</b> ${escHtml(app.experience || '—')}</p>
+      <p><b>Мотивация:</b> ${escHtml(app.motivation || '—')}</p>
       <p><b>Согласие:</b> ${app.agreement === 'yes' ? 'Да' : 'Нет'}</p>
       <h4 style="margin-top:1rem;">📜 Ответы на правила</h4>
       <ol>
-        <li>Читы (6.1): ${esc(app.rule_6_1 || '—')}</li>
-        <li>Гриферство (8.1): ${esc(app.rule_8_1 || '—')}</li>
-        <li>Оскорбления (2.1): ${esc(app.rule_2_1 || '—')}</li>
-        <li>Администраторам (3.2): ${esc(app.rule_3_2 || '—')}</li>
-        <li>Территория (9.3): ${esc(app.rule_9_3 || '—')}</li>
-        <li>Спам/флуд (2.2-2.3): ${esc(app.rule_2_2_2_3 || '—')}</li>
-        <li>Обход бана (8.5): ${esc(app.rule_8_5 || '—')}</li>
-      </ol>`;
+        <li>Читы (6.1): ${escHtml(app.rule_6_1 || '—')}</li>
+        <li>Гриферство (8.1): ${escHtml(app.rule_8_1 || '—')}</li>
+        <li>Оскорбления (2.1): ${escHtml(app.rule_2_1 || '—')}</li>
+        <li>Администраторам (3.2): ${escHtml(app.rule_3_2 || '—')}</li>
+        <li>Территория (9.3): ${escHtml(app.rule_9_3 || '—')}</li>
+        <li>Спам/флуд (2.2-2.3): ${escHtml(app.rule_2_2_2_3 || '—')}</li>
+        <li>Обход бана (8.5): ${escHtml(app.rule_8_5 || '—')}</li>
+      </ol>
+    `;
     document.getElementById('detailsModal').classList.add('active');
   }
 
-  // --- Сообщения ---
-  async function loadMessages() {
-    const container = document.getElementById('messages-container');
-    container.style.display = 'block';
-    container.innerHTML = '<div class="loading">Загрузка сообщений...</div>';
-    try {
-      const res = await fetch(`${API_BASE}/api/messages?password=${PASSWORD}`);
-      const msgs = await res.json();
-      if (!msgs.length) {
-        container.innerHTML = '<div class="empty">💬 Нет сообщений.</div>';
-        return;
-      }
-      let html = `<table><tr><th>От кого</th><th>Сообщение</th><th>Дата</th><th>Ответить</th></tr>`;
-      msgs.reverse().forEach(msg => {
-        html += `<tr>
-          <td>@${esc(msg.username || 'аноним')}</td>
-          <td>${esc(msg.text)}</td>
-          <td>${msg.date}</td>
-          <td><button class="btn btn-accept" onclick="replyTo(${msg.chat_id})">✉️</button></td>
-        </tr>`;
-      });
-      html += '</table>';
-      container.innerHTML = html;
-    } catch(e) {
-      container.innerHTML = '<div class="empty">Ошибка загрузки сообщений.</div>';
-    }
+  function closeModal() {
+    document.getElementById('detailsModal').classList.remove('active');
   }
 
-  function replyTo(chatId) {
-    const text = prompt('Введите ответ:');
-    if (!text) return;
-    fetch(`${API_BASE}/api/reply`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({chat_id: chatId, text, password: PASSWORD})
-    }).then(r => r.json()).then(d => {
-      if (d.status === 'ok') alert('✅ Ответ отправлен!');
-      else alert('Ошибка: ' + (d.error || ''));
-    });
-  }
-
-  window.onload = renderApps;
+  window.onload = renderTable;
 </script>
 </body>
 </html>"""
 
-# ---------- МАРШРУТЫ ----------
+# ---------- МАРШРУТЫ FLASK ----------
 @app.route("/")
 def home(): return "✅ Бот работает!"
 
@@ -375,13 +346,17 @@ def admin_panel_page():
 
 @app.route("/api/applications")
 def api_applications():
-    if request.args.get("password") != ADMIN_PASSWORD: return jsonify({"error": "unauthorized"}), 401
-    return jsonify(load_json(DATA_FILE, []))
+    pwd = request.args.get("password", "")
+    if pwd != ADMIN_PASSWORD:
+        return jsonify({"error": "unauthorized"}), 401
+    apps = load_json(DATA_FILE, [])
+    return jsonify(apps)
 
 @app.route("/api/accept", methods=["POST"])
 def api_accept():
     data = request.get_json(force=True)
-    if data.get("password") != ADMIN_PASSWORD: return jsonify({"error": "unauthorized"}), 401
+    pwd = data.get("password", "")
+    if pwd != ADMIN_PASSWORD: return jsonify({"error": "unauthorized"}), 401
     app_id = data.get("id")
     apps = load_json(DATA_FILE, [])
     app = next((a for a in apps if a["id"] == app_id), None)
@@ -392,30 +367,14 @@ def api_accept():
 @app.route("/api/reject", methods=["POST"])
 def api_reject():
     data = request.get_json(force=True)
-    if data.get("password") != ADMIN_PASSWORD: return jsonify({"error": "unauthorized"}), 401
+    pwd = data.get("password", "")
+    if pwd != ADMIN_PASSWORD: return jsonify({"error": "unauthorized"}), 401
     app_id = data.get("id")
     apps = load_json(DATA_FILE, [])
     app = next((a for a in apps if a["id"] == app_id), None)
     if not app or app["status"] != "pending": return jsonify({"error": "not found or already processed"}), 404
     reject_ml_app_web(app, apps)
     return jsonify({"status": "ok"})
-
-@app.route("/api/messages")
-def api_messages():
-    if request.args.get("password") != ADMIN_PASSWORD: return jsonify({"error": "unauthorized"}), 401
-    return jsonify(load_json(MESSAGES_FILE, []))
-
-@app.route("/api/reply", methods=["POST"])
-def api_reply():
-    data = request.get_json(force=True)
-    if data.get("password") != ADMIN_PASSWORD: return jsonify({"error": "unauthorized"}), 401
-    chat_id, text = data.get("chat_id"), data.get("text")
-    if not chat_id or not text: return jsonify({"error": "chat_id и text обязательны"}), 400
-    try:
-        bot.send_message(chat_id, f"👑 Ответ от администрации:\n{text}")
-        return jsonify({"status": "ok"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 def accept_ml_app_web(app, apps):
     app["status"] = "accepted"
@@ -441,7 +400,81 @@ def reject_ml_app_web(app, apps):
     try: bot.send_message(app["chat_id"], f"Привет {app['real_name']}. К сожалению, твоя заявка не прошла. Можешь подать повторно через 7 дней.")
     except: pass
 
-# ---------- TELEGRAM БОТ ----------
+# ---------- ЖИВАЯ ПОДДЕРЖКА ----------
+def save_message(chat_id, username, text, from_admin=False):
+    """Сохраняет сообщение в лог."""
+    msgs = load_json(USER_MESSAGES_FILE, [])
+    msgs.append({
+        "chat_id": chat_id,
+        "username": username,
+        "text": text,
+        "from_admin": from_admin,
+        "timestamp": datetime.now().isoformat()
+    })
+    save_json(USER_MESSAGES_FILE, msgs)
+
+@bot.message_handler(func=lambda message: True, content_types=['text'])
+def handle_all_messages(message):
+    """Перехватывает все текстовые сообщения, которые не были обработаны ранее."""
+    if message.text.startswith('/'): return   # команды обрабатываются отдельно
+
+    chat_id = message.chat.id
+    user = message.chat.username or "аноним"
+    text = message.text
+
+    # Если сообщение от администратора – не пересылаем самому себе
+    if chat_id in ADMIN_IDS:
+        return
+
+    # Сохраняем сообщение и пересылаем админам
+    save_message(chat_id, user, text)
+    for admin_id in ADMIN_IDS:
+        try:
+            bot.send_message(admin_id, f"📩 Сообщение от @{user} (ID: `{chat_id}`):\n{text}", parse_mode="Markdown")
+        except: pass
+
+@bot.message_handler(commands=['reply'])
+def reply_to_user(message):
+    if message.from_user.id not in ADMIN_IDS:
+        bot.reply_to(message, "⛔ Нет доступа."); return
+    args = message.text.split(maxsplit=2)
+    if len(args) < 3:
+        bot.reply_to(message, "Использование: /reply <chat_id> <текст>"); return
+    try:
+        target_id = int(args[1])
+    except ValueError:
+        bot.reply_to(message, "Неверный chat_id."); return
+    reply_text = args[2]
+    try:
+        bot.send_message(target_id, reply_text)
+        bot.reply_to(message, f"✅ Ответ отправлен пользователю {target_id}.")
+        save_message(target_id, "admin", reply_text, from_admin=True)
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка при отправке: {e}")
+
+@bot.message_handler(commands=['history'])
+def user_history(message):
+    if message.from_user.id not in ADMIN_IDS:
+        bot.reply_to(message, "⛔ Нет доступа."); return
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "Использование: /history <chat_id>"); return
+    try:
+        user_id = int(args[1])
+    except ValueError:
+        bot.reply_to(message, "Неверный chat_id."); return
+    msgs = load_json(USER_MESSAGES_FILE, [])
+    user_msgs = [m for m in msgs if m["chat_id"] == user_id][-10:]
+    if not user_msgs:
+        bot.reply_to(message, "Нет сохранённых сообщений с этим пользователем.")
+        return
+    text = f"📜 Последние сообщения от/для `{user_id}`:\n\n"
+    for m in user_msgs:
+        prefix = "🟢" if m["from_admin"] else "🔵"
+        text += f"{prefix} @{m['username']}: {m['text']}\n"
+    bot.send_message(message.chat.id, text, parse_mode="Markdown")
+
+# ---------- TELEGRAM БОТ (основные функции) ----------
 def is_admin(user_id=None, username=None):
     if user_id and user_id in ADMIN_IDS: return True
     if username and username.lower() == ADMIN_USERNAME.lower(): return True
@@ -532,27 +565,6 @@ def on_new_member(message):
                         bot.send_message(STAFF_GROUP_ID, f"👋 Добро пожаловать! Твой тег: **{nick}**", parse_mode="Markdown")
                     except: pass
 
-# ---------- ПЕРЕСЫЛКА ВХОДЯЩИХ СООБЩЕНИЙ (кроме команд) ----------
-@bot.message_handler(func=lambda msg: not msg.text.startswith('/') and msg.chat.id not in ADMIN_IDS)
-def forward_user_message(message):
-    chat_id = message.chat.id
-    username = message.chat.username or "аноним"
-    text = message.text
-
-    msgs = load_json(MESSAGES_FILE, [])
-    msgs.append({
-        "chat_id": chat_id,
-        "username": username,
-        "text": text,
-        "date": datetime.now().strftime("%d.%m.%Y %H:%M")
-    })
-    save_json(MESSAGES_FILE, msgs)
-
-    for admin_id in ADMIN_IDS:
-        try: bot.send_message(admin_id, f"💬 Сообщение от @{username} (ID {chat_id}):\n{text}")
-        except: pass
-    bot.send_message(chat_id, "✨ Твоё сообщение получено. Администратор скоро ответит.")
-
 @bot.callback_query_handler(func=lambda call: True)
 def callback_handler(call):
     if not is_admin(user_id=call.from_user.id, username=call.from_user.username):
@@ -622,4 +634,5 @@ if __name__ == "__main__":
     try: bot.remove_webhook()
     except: pass
     bot.set_webhook(url=f"{RENDER_URL}/telegram")
+    print("[START] Бот запущен. Поддержка включена.")
     app.run(host="0.0.0.0", port=PORT)
