@@ -9,16 +9,16 @@ from telebot import types
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN: raise ValueError("TELEGRAM_TOKEN не установлен!")
 
-ADMIN_IDS = [5145474067]                 # Твой Telegram ID
-ADMIN_USERNAME = "MrKronick"            # Твой username
-STAFF_GROUP_ID = -1003682731952         # ID группы модераторов
+ADMIN_IDS = [5145474067]
+ADMIN_USERNAME = "MrKronick"
+STAFF_GROUP_ID = -1003682731952
 STAFF_INVITE_LINK = "https://t.me/+mgRGzcfEHfE4YWUy"
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "foggy2026")
 
 DATA_FILE = "ml_moderator_applications.json"
 PENDING_CODES_FILE = "pending_codes.json"
 PENDING_TAGS_FILE = "pending_tags.json"
-USER_MESSAGES_FILE = "user_messages.json"   # лог сообщений для живой поддержки
+USER_MESSAGES_FILE = "user_messages.json"
 PORT = int(os.environ.get("PORT", 10000))
 RENDER_URL = "https://moderfoggyland.onrender.com"
 
@@ -37,7 +37,7 @@ app = Flask(__name__)
 CORS(app)
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
-# ---------- ВСТРОЕННАЯ АДМИН-ПАНЕЛЬ (HTML) ----------
+# ---------- ВСТРОЕННАЯ АДМИН-ПАНЕЛЬ ЗАЯВОК (HTML) ----------
 ADMIN_PANEL_HTML = r"""<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -296,6 +296,164 @@ ADMIN_PANEL_HTML = r"""<!DOCTYPE html>
 </body>
 </html>"""
 
+# ---------- ВСТРОЕННЫЙ ЧАТ-ИНТЕРФЕЙС (HTML) ----------
+CHAT_PANEL_HTML = r"""<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>FoggyLand Chat Admin</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at 20% 30%, #1f3b1f, #0a1a0a);
+      min-height:100vh; padding:1rem; color:#d0e6d5;
+    }
+    .container { max-width:900px; margin:0 auto; }
+    h1 {
+      font-size:2.2rem; font-weight:800;
+      background: linear-gradient(180deg, #d4f0c0, #7fa86b);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+      text-align:center; margin-bottom:1rem;
+    }
+    .chat-box {
+      background: rgba(10,20,12,0.8); backdrop-filter: blur(20px);
+      border-radius:1.5rem; padding:1.5rem; border:1px solid rgba(120,170,80,0.3);
+      margin-bottom:1rem;
+    }
+    .messages {
+      max-height: 50vh; overflow-y: auto; margin-bottom:1rem;
+    }
+    .msg {
+      padding:0.6rem 1rem; margin-bottom:0.5rem; border-radius:1rem;
+      background: rgba(30,50,30,0.6); word-break:break-word;
+    }
+    .msg.admin { background: rgba(60,100,40,0.6); }
+    .msg small { color:#8aa87c; font-size:0.8rem; display:block; }
+    .input-area { display:flex; gap:0.5rem; }
+    input[type="text"] {
+      flex:1; padding:0.7rem 1rem; background: rgba(8,15,8,0.7);
+      border:1.5px solid #3b5432; border-radius:1.2rem; color:#eaf4e0;
+      font-size:1rem; outline:none;
+    }
+    button {
+      padding:0.7rem 1.5rem; background: #2b5322; color:#f2ffe5;
+      border:none; border-radius:1.2rem; font-weight:600; cursor:pointer;
+      transition:0.2s;
+    }
+    button:hover { background: #3d7330; }
+    .user-list { display:flex; flex-direction:column; gap:0.3rem; margin-bottom:1rem; }
+    .user-item {
+      background: rgba(20,30,18,0.7); padding:0.8rem 1rem; border-radius:1rem;
+      cursor:pointer; border:1px solid rgba(90,150,100,0.3);
+      transition:0.2s;
+    }
+    .user-item:hover { background: rgba(40,70,40,0.7); }
+    .back-link { color:#9bc17a; text-decoration:none; margin-bottom:1rem; display:inline-block; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>💬 Чат с пользователями</h1>
+  <a class="back-link" href="/admin-panel?pwd=foggy2026">← К заявкам</a>
+  <div id="chat-container">
+    <div class="user-list" id="user-list"></div>
+    <div id="conversation" class="chat-box" style="display:none;"></div>
+  </div>
+</div>
+
+<script>
+  const PASSWORD = 'foggy2026';
+  const API_BASE = window.location.origin;
+  let currentChatId = null;
+
+  async function fetchUsers() {
+    try {
+      const res = await fetch(`${API_BASE}/api/chat/users?password=${PASSWORD}`);
+      if (!res.ok) throw new Error('Ошибка');
+      return await res.json();
+    } catch(e) {
+      document.getElementById('user-list').innerHTML = '<p>Ошибка загрузки</p>';
+      return [];
+    }
+  }
+
+  async function fetchMessages(chatId) {
+    const res = await fetch(`${API_BASE}/api/chat/messages?password=${PASSWORD}&chat_id=${chatId}`);
+    if (!res.ok) return [];
+    return await res.json();
+  }
+
+  function renderUserList(users) {
+    const container = document.getElementById('user-list');
+    if (!users.length) {
+      container.innerHTML = '<p>Нет сообщений от пользователей.</p>';
+      return;
+    }
+    container.innerHTML = users.map(u => `
+      <div class="user-item" onclick="openChat(${u.chat_id})">
+        <strong>@${u.username}</strong> (ID: ${u.chat_id})<br>
+        <small>Последнее: ${u.last_text || ''}</small>
+      </div>
+    `).join('');
+  }
+
+  async function openChat(chatId) {
+    currentChatId = chatId;
+    const msgs = await fetchMessages(chatId);
+    const convDiv = document.getElementById('conversation');
+    convDiv.style.display = 'block';
+    let html = '<div class="messages">';
+    msgs.forEach(m => {
+      const cls = m.from_admin ? 'admin' : '';
+      html += `<div class="msg ${cls}">
+        <small>@${m.username} | ${new Date(m.timestamp).toLocaleString('ru')}</small>
+        ${escapeHtml(m.text)}
+      </div>`;
+    });
+    html += '</div>';
+    html += `
+      <div class="input-area">
+        <input type="text" id="replyInput" placeholder="Напишите ответ...">
+        <button onclick="sendReply()">Отправить</button>
+      </div>`;
+    convDiv.innerHTML = html;
+  }
+
+  async function sendReply() {
+    const text = document.getElementById('replyInput').value.trim();
+    if (!text || !currentChatId) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/chat/reply`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ chat_id: currentChatId, text, password: PASSWORD })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById('replyInput').value = '';
+        openChat(currentChatId);
+      } else {
+        alert('Ошибка: ' + (data.error || 'неизвестно'));
+      }
+    } catch(e) {
+      alert('Сетевая ошибка');
+    }
+  }
+
+  function escapeHtml(text) {
+    return text.replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[m]);
+  }
+
+  (async () => {
+    const users = await fetchUsers();
+    renderUserList(users);
+  })();
+</script>
+</body>
+</html>"""
+
 # ---------- МАРШРУТЫ FLASK ----------
 @app.route("/")
 def home(): return "✅ Бот работает!"
@@ -337,6 +495,7 @@ def telegram_webhook():
         return "OK"
     return "Bad request", 400
 
+# ---------- МАРШРУТЫ АДМИН-ПАНЕЛИ ЗАЯВОК ----------
 @app.route("/admin-panel")
 def admin_panel_page():
     pwd = request.args.get("pwd", "")
@@ -376,6 +535,63 @@ def api_reject():
     reject_ml_app_web(app, apps)
     return jsonify({"status": "ok"})
 
+# ---------- МАРШРУТЫ ЧАТА ----------
+@app.route("/admin-chat")
+def admin_chat_page():
+    pwd = request.args.get("pwd", "")
+    if pwd != ADMIN_PASSWORD:
+        return "Доступ запрещён. Укажите правильный пароль: ?pwd=...", 403
+    return CHAT_PANEL_HTML
+
+@app.route("/api/chat/users")
+def api_chat_users():
+    pwd = request.args.get("password", "")
+    if pwd != ADMIN_PASSWORD: return jsonify({"error": "unauthorized"}), 401
+    msgs = load_json(USER_MESSAGES_FILE, [])
+    users = {}
+    for m in msgs:
+        if m["from_admin"]: continue
+        cid = m["chat_id"]
+        if cid not in users or m["timestamp"] > users[cid]["timestamp"]:
+            users[cid] = {
+                "chat_id": cid,
+                "username": m["username"],
+                "last_text": m["text"],
+                "timestamp": m["timestamp"]
+            }
+    return jsonify(list(users.values()))
+
+@app.route("/api/chat/messages")
+def api_chat_messages():
+    pwd = request.args.get("password", "")
+    if pwd != ADMIN_PASSWORD: return jsonify({"error": "unauthorized"}), 401
+    try:
+        chat_id = int(request.args.get("chat_id"))
+    except:
+        return jsonify({"error": "invalid chat_id"}), 400
+    msgs = load_json(USER_MESSAGES_FILE, [])
+    user_msgs = [m for m in msgs if m["chat_id"] == chat_id]
+    return jsonify(user_msgs)
+
+@app.route("/api/chat/reply", methods=["POST"])
+def api_chat_reply():
+    data = request.get_json(force=True)
+    pwd = data.get("password", "")
+    if pwd != ADMIN_PASSWORD: return jsonify({"error": "unauthorized"}), 401
+    try:
+        target_id = int(data.get("chat_id"))
+    except:
+        return jsonify({"error": "invalid chat_id"}), 400
+    text = data.get("text", "").strip()
+    if not text: return jsonify({"error": "empty text"}), 400
+    try:
+        bot.send_message(target_id, text)
+        save_message(target_id, "admin", text, from_admin=True)
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ---------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ЗАЯВОК ----------
 def accept_ml_app_web(app, apps):
     app["status"] = "accepted"
     chat_id, user_nick = app["chat_id"], app.get("minecraft_nick", "игрок")
@@ -400,9 +616,8 @@ def reject_ml_app_web(app, apps):
     try: bot.send_message(app["chat_id"], f"Привет {app['real_name']}. К сожалению, твоя заявка не прошла. Можешь подать повторно через 7 дней.")
     except: pass
 
-# ---------- ЖИВАЯ ПОДДЕРЖКА ----------
+# ---------- ЖИВАЯ ПОДДЕРЖКА (TELEGRAM) ----------
 def save_message(chat_id, username, text, from_admin=False):
-    """Сохраняет сообщение в лог."""
     msgs = load_json(USER_MESSAGES_FILE, [])
     msgs.append({
         "chat_id": chat_id,
@@ -415,18 +630,11 @@ def save_message(chat_id, username, text, from_admin=False):
 
 @bot.message_handler(func=lambda message: True, content_types=['text'])
 def handle_all_messages(message):
-    """Перехватывает все текстовые сообщения, которые не были обработаны ранее."""
-    if message.text.startswith('/'): return   # команды обрабатываются отдельно
-
+    if message.text.startswith('/'): return
     chat_id = message.chat.id
+    if chat_id in ADMIN_IDS: return
     user = message.chat.username or "аноним"
     text = message.text
-
-    # Если сообщение от администратора – не пересылаем самому себе
-    if chat_id in ADMIN_IDS:
-        return
-
-    # Сохраняем сообщение и пересылаем админам
     save_message(chat_id, user, text)
     for admin_id in ADMIN_IDS:
         try:
@@ -474,7 +682,7 @@ def user_history(message):
         text += f"{prefix} @{m['username']}: {m['text']}\n"
     bot.send_message(message.chat.id, text, parse_mode="Markdown")
 
-# ---------- TELEGRAM БОТ (основные функции) ----------
+# ---------- TELEGRAM БОТ (ОСНОВНЫЕ КОМАНДЫ) ----------
 def is_admin(user_id=None, username=None):
     if user_id and user_id in ADMIN_IDS: return True
     if username and username.lower() == ADMIN_USERNAME.lower(): return True
@@ -634,5 +842,5 @@ if __name__ == "__main__":
     try: bot.remove_webhook()
     except: pass
     bot.set_webhook(url=f"{RENDER_URL}/telegram")
-    print("[START] Бот запущен. Поддержка включена.")
+    print("[START] Бот запущен. Админ-панель, чат и поддержка включены.")
     app.run(host="0.0.0.0", port=PORT)
