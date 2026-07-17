@@ -1,6 +1,6 @@
 import os, json, uuid
 from datetime import datetime
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import telebot
 from telebot import types
@@ -12,6 +12,7 @@ ADMIN_IDS = [5145474067]
 ADMIN_USERNAME = "MrKronick"
 STAFF_GROUP_ID = -1003682731952
 STAFF_INVITE_LINK = "https://t.me/+mgRGzcfEHfE4YWUy"
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "foggy2026")
 
 DATA_FILE = "ml_moderator_applications.json"
 PENDING_CODES_FILE = "pending_codes.json"
@@ -32,6 +33,7 @@ app = Flask(__name__)
 CORS(app)
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
+# ========== СТАРЫЕ МАРШРУТЫ ==========
 @app.route("/")
 def home(): return "✅ Бот работает!"
 
@@ -72,6 +74,82 @@ def telegram_webhook():
         return "OK"
     return "Bad request", 400
 
+# ========== НОВЫЕ МАРШРУТЫ АДМИНКИ ==========
+@app.route("/admin-panel")
+def admin_panel_page():
+    """Отображает страницу админ-панели, если пароль верен."""
+    pwd = request.args.get("pwd", "")
+    if pwd != ADMIN_PASSWORD:
+        return "Доступ запрещён. Укажите правильный пароль: ?pwd=...", 403
+    return send_from_directory(".", "admin_panel.html")
+
+@app.route("/api/applications")
+def api_applications():
+    """Возвращает все заявки в JSON. Доступ только с правильным паролем."""
+    pwd = request.args.get("password", "")
+    if pwd != ADMIN_PASSWORD:
+        return jsonify({"error": "unauthorized"}), 401
+    apps = load_json(DATA_FILE, [])
+    return jsonify(apps)
+
+@app.route("/api/accept", methods=["POST"])
+def api_accept():
+    """Принять заявку через админ-панель."""
+    data = request.get_json(force=True)
+    pwd = data.get("password", "")
+    if pwd != ADMIN_PASSWORD:
+        return jsonify({"error": "unauthorized"}), 401
+    app_id = data.get("id")
+    apps = load_json(DATA_FILE, [])
+    app = next((a for a in apps if a["id"] == app_id), None)
+    if not app or app["status"] != "pending":
+        return jsonify({"error": "not found or already processed"}), 404
+    # Используем ту же логику, что в accept_ml_app, но вызываем функцию напрямую
+    accept_ml_app_web(app, apps)
+    return jsonify({"status": "ok"})
+
+@app.route("/api/reject", methods=["POST"])
+def api_reject():
+    """Отклонить заявку через админ-панель."""
+    data = request.get_json(force=True)
+    pwd = data.get("password", "")
+    if pwd != ADMIN_PASSWORD:
+        return jsonify({"error": "unauthorized"}), 401
+    app_id = data.get("id")
+    apps = load_json(DATA_FILE, [])
+    app = next((a for a in apps if a["id"] == app_id), None)
+    if not app or app["status"] != "pending":
+        return jsonify({"error": "not found or already processed"}), 404
+    reject_ml_app_web(app, apps)
+    return jsonify({"status": "ok"})
+
+def accept_ml_app_web(app, apps):
+    """Логика принятия заявки (для веб-панели)."""
+    app["status"] = "accepted"
+    chat_id, user_nick = app["chat_id"], app.get("minecraft_nick", "игрок")
+    pending_tags = load_json(PENDING_TAGS_FILE, [])
+    pending_tags.append({"chat_id": chat_id, "nick": user_nick})
+    save_json(PENDING_TAGS_FILE, pending_tags)
+    try:
+        bot.add_chat_member(chat_id=STAFF_GROUP_ID, user_id=chat_id)
+        bot.send_message(chat_id, "✅ Ты добавлен в группу модераторов FoggyLand! Тег будет выдан автоматически.")
+        bot.send_message(STAFF_GROUP_ID, f"👋 Новый мл. модератор **{user_nick}** присоединился!", parse_mode="Markdown")
+    except:
+        try:
+            invite = bot.create_chat_invite_link(chat_id=STAFF_GROUP_ID, member_limit=1, name=f"Приглашение для {user_nick}")
+            bot.send_message(chat_id, f"🎉 Поздравляю, {app['real_name']}!\n\nТвоя заявка одобрена!\nПерейди по ссылке для входа в группу:\n\n🔗 {invite.invite_link}\n\nПосле входа тебе автоматически выдадут тег.", disable_web_page_preview=True)
+            bot.send_message(STAFF_GROUP_ID, f"👋 Новый мл. модератор **{user_nick}** скоро присоединится по приглашению.", parse_mode="Markdown")
+        except: bot.send_message(chat_id, "⚠️ Не удалось добавить в группу. Администратор добавит вас вручную.")
+    save_json(DATA_FILE, apps)
+
+def reject_ml_app_web(app, apps):
+    """Логика отклонения заявки (для веб-панели)."""
+    app["status"] = "rejected"
+    save_json(DATA_FILE, apps)
+    try: bot.send_message(app["chat_id"], f"Привет {app['real_name']}. К сожалению, твоя заявка не прошла. Можешь подать повторно через 7 дней.")
+    except: pass
+
+# ========== TELEGRAM BOT ==========
 def is_admin(user_id=None, username=None):
     if user_id and user_id in ADMIN_IDS: return True
     if username and username.lower() == ADMIN_USERNAME.lower(): return True
@@ -218,34 +296,13 @@ def show_ml_detail(call, app):
 def accept_ml_app(call, app_id, apps):
     app = next((a for a in apps if a["id"] == app_id), None)
     if not app or app["status"] != "pending": bot.edit_message_text("❌ Не найдена.", call.message.chat.id, call.message.message_id); return
-    app["status"] = "accepted"
-    chat_id, user_nick = app["chat_id"], app.get("minecraft_nick", "игрок")
-
-    pending_tags = load_json(PENDING_TAGS_FILE, [])
-    pending_tags.append({"chat_id": chat_id, "nick": user_nick})
-    save_json(PENDING_TAGS_FILE, pending_tags)
-
-    try:
-        bot.add_chat_member(chat_id=STAFF_GROUP_ID, user_id=chat_id)
-        bot.send_message(chat_id, "✅ Ты добавлен в группу модераторов FoggyLand! Тег будет выдан автоматически.")
-        bot.send_message(STAFF_GROUP_ID, f"👋 Новый мл. модератор **{user_nick}** присоединился!", parse_mode="Markdown")
-    except:
-        try:
-            invite = bot.create_chat_invite_link(chat_id=STAFF_GROUP_ID, member_limit=1, name=f"Приглашение для {user_nick}")
-            bot.send_message(chat_id, f"🎉 Поздравляю, {app['real_name']}!\n\nТвоя заявка одобрена!\nПерейди по ссылке для входа в группу:\n\n🔗 {invite.invite_link}\n\nПосле входа тебе автоматически выдадут тег.", disable_web_page_preview=True)
-            bot.send_message(STAFF_GROUP_ID, f"👋 Новый мл. модератор **{user_nick}** скоро присоединится по приглашению.", parse_mode="Markdown")
-        except: bot.send_message(chat_id, "⚠️ Не удалось добавить в группу. Администратор добавит вас вручную.")
-
-    save_json(DATA_FILE, apps)
+    accept_ml_app_web(app, apps)
     bot.edit_message_text(f"✅ Заявка #{app_id} принята!", call.message.chat.id, call.message.message_id)
 
 def reject_ml_app(call, app_id, apps):
     app = next((a for a in apps if a["id"] == app_id), None)
     if not app or app["status"] != "pending": bot.edit_message_text("❌ Не найдена.", call.message.chat.id, call.message.message_id); return
-    app["status"] = "rejected"
-    save_json(DATA_FILE, apps)
-    try: bot.send_message(app["chat_id"], f"Привет {app['real_name']}. К сожалению, твоя заявка не прошла. Можешь подать повторно через 7 дней.")
-    except: pass
+    reject_ml_app_web(app, apps)
     bot.edit_message_text(f"❌ Заявка #{app_id} отклонена!", call.message.chat.id, call.message.message_id)
 
 if __name__ == "__main__":
