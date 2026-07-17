@@ -1,10 +1,11 @@
 import os, json, uuid
 from datetime import datetime
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 import telebot
 from telebot import types
 
+# ---------- КОНФИГУРАЦИЯ ----------
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN: raise ValueError("TELEGRAM_TOKEN не установлен!")
 
@@ -20,6 +21,7 @@ PENDING_TAGS_FILE = "pending_tags.json"
 PORT = int(os.environ.get("PORT", 10000))
 RENDER_URL = "https://moderfoggyland.onrender.com"
 
+# ---------- ХРАНИЛИЩЕ ----------
 def load_json(filename, default=None):
     if default is None: default = {}
     if os.path.exists(filename):
@@ -29,11 +31,12 @@ def load_json(filename, default=None):
 def save_json(filename, data):
     with open(filename, "w", encoding="utf-8") as f: json.dump(data, f, ensure_ascii=False, indent=2)
 
+# ---------- FLASK ----------
 app = Flask(__name__)
 CORS(app)
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
-# ========== СТАРЫЕ МАРШРУТЫ ==========
+# ---------- МАРШРУТЫ ----------
 @app.route("/")
 def home(): return "✅ Бот работает!"
 
@@ -74,57 +77,232 @@ def telegram_webhook():
         return "OK"
     return "Bad request", 400
 
-# ========== НОВЫЕ МАРШРУТЫ АДМИНКИ ==========
+# ---------- АДМИН-ПАНЕЛЬ ----------
 @app.route("/admin-panel")
 def admin_panel_page():
-    """Отображает страницу админ-панели, если пароль верен."""
     pwd = request.args.get("pwd", "")
     if pwd != ADMIN_PASSWORD:
         return "Доступ запрещён. Укажите правильный пароль: ?pwd=...", 403
-    return send_from_directory(".", "admin_panel.html")
+    # Красивый HTML с встроенными стилями и скриптами
+    return render_template_string('''
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FoggyLand · Админ-панель</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a1f0e;
+      --card: rgba(18, 30, 18, 0.8);
+      --border: rgba(100, 170, 80, 0.3);
+      --accent: #6fb85a;
+      --text: #d0e6d5;
+      --muted: #8aa87c;
+      --radius: 1.5rem;
+      --shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(90,150,80,0.2);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at 20% 30%, #1a3b2e, #0b1f17);
+      min-height: 100vh;
+      padding: 2rem;
+      color: var(--text);
+      position: relative;
+      overflow-x: hidden;
+    }
+    /* Анимированный фон */
+    .bg-fog {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="30" r="40" fill="rgba(100,180,100,0.05)"/><circle cx="80" cy="70" r="50" fill="rgba(60,120,60,0.04)"/></svg>');
+      animation: fog 30s infinite alternate;
+      z-index: 0;
+    }
+    @keyframes fog { 0% { opacity: 0.3; transform: scale(1); } 100% { opacity: 0.6; transform: scale(1.02); } }
+    .container { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; }
+    h1 {
+      font-size: 2.5rem; font-weight: 800;
+      background: linear-gradient(180deg, #d4f0c0 0%, #7fa86b 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      text-align: center; margin-bottom: 0.5rem;
+    }
+    .subtitle { text-align: center; color: var(--muted); margin-bottom: 2rem; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.5rem; }
+    .app-card {
+      background: var(--card); backdrop-filter: blur(15px);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.5rem; box-shadow: var(--shadow);
+      transition: all 0.3s ease;
+      display: flex; flex-direction: column;
+    }
+    .app-card:hover { transform: translateY(-5px); border-color: var(--accent); box-shadow: 0 25px 45px rgba(0,0,0,0.5), 0 0 0 1px var(--accent); }
+    .app-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .app-id { font-weight: 700; color: var(--accent); font-size: 1.1rem; }
+    .app-status { font-size: 0.85rem; padding: 0.3rem 0.8rem; border-radius: 2rem; font-weight: 600; }
+    .status-pending { background: rgba(255,200,50,0.15); color: #f0c060; }
+    .status-accepted { background: rgba(100,200,80,0.15); color: #7cc96b; }
+    .status-rejected { background: rgba(220,80,80,0.15); color: #e07070; }
+    .app-name { font-size: 1.3rem; font-weight: 600; margin-bottom: 0.3rem; }
+    .app-nick { color: var(--muted); margin-bottom: 0.8rem; }
+    .app-tg { color: var(--accent); text-decoration: none; font-weight: 500; }
+    .details-btn {
+      background: rgba(100,160,80,0.2); border: 1px solid var(--border);
+      color: var(--text); padding: 0.5rem 1rem; border-radius: 2rem;
+      cursor: pointer; font-weight: 500; margin-top: 0.8rem;
+      transition: 0.2s;
+    }
+    .details-btn:hover { background: rgba(100,160,80,0.4); }
+    .app-actions { display: flex; gap: 0.5rem; margin-top: auto; padding-top: 1rem; }
+    .btn {
+      flex: 1; padding: 0.6rem; border-radius: 2rem; font-weight: 600;
+      cursor: pointer; border: none; transition: 0.2s; font-size: 0.9rem;
+    }
+    .btn-accept { background: #2d8a3e; color: white; }
+    .btn-accept:hover { background: #3ca64e; }
+    .btn-reject { background: #8a3a3a; color: white; }
+    .btn-reject:hover { background: #a64a4a; }
+    .details-panel {
+      display: none; margin-top: 1rem; padding: 1rem;
+      background: rgba(0,0,0,0.2); border-radius: 1rem;
+      border: 1px solid var(--border);
+    }
+    .details-panel.open { display: block; }
+    .details-panel p { margin-bottom: 0.5rem; font-size: 0.9rem; }
+    .details-panel strong { color: var(--accent); }
+    .empty { text-align: center; color: var(--muted); font-size: 1.2rem; margin-top: 3rem; }
+  </style>
+</head>
+<body>
+<div class="bg-fog"></div>
+<div class="container">
+  <h1>🌲 FoggyLand</h1>
+  <p class="subtitle">Административная панель заявок на мл. модератора</p>
+  <div id="apps-container" class="card-grid"></div>
+  <div id="empty-message" class="empty" style="display:none;">Заявок пока нет</div>
+</div>
+<script>
+  const PASSWORD = '{{ password }}';
+  const API_BASE = window.location.origin;
 
+  async function loadApps() {
+    try {
+      const res = await fetch(`${API_BASE}/api/applications?password=${PASSWORD}`);
+      if (!res.ok) throw new Error('Ошибка загрузки');
+      const apps = await res.json();
+      renderApps(apps);
+    } catch (e) {
+      document.getElementById('apps-container').innerHTML = '<div class="empty">Ошибка загрузки</div>';
+    }
+  }
+
+  function renderApps(apps) {
+    const container = document.getElementById('apps-container');
+    const emptyMsg = document.getElementById('empty-message');
+    if (!apps || apps.length === 0) {
+      container.innerHTML = '';
+      emptyMsg.style.display = 'block';
+      return;
+    }
+    emptyMsg.style.display = 'none';
+    let html = '';
+    apps.forEach(app => {
+      const statusClass = app.status === 'accepted' ? 'status-accepted' : (app.status === 'rejected' ? 'status-rejected' : 'status-pending');
+      const statusText = app.status === 'accepted' ? 'Принята' : (app.status === 'rejected' ? 'Отклонена' : 'Ожидает');
+      html += `
+        <div class="app-card">
+          <div class="app-header">
+            <span class="app-id">#${app.id}</span>
+            <span class="app-status ${statusClass}">${statusText}</span>
+          </div>
+          <div class="app-name">${app.real_name}</div>
+          <div class="app-nick">⛏ ${app.minecraft_nick}</div>
+          <div><a class="app-tg" href="https://t.me/${app.telegram_user}" target="_blank">@${app.telegram_user}</a></div>
+          <button class="details-btn" onclick="toggleDetails(${app.id})">📋 Детали</button>
+          <div class="details-panel" id="details-${app.id}">
+            <p><strong>Возраст:</strong> ${app.age || '—'}</p>
+            <p><strong>Опыт:</strong> ${app.experience || '—'}</p>
+            <p><strong>Мотивация:</strong> ${app.motivation || '—'}</p>
+            <p><strong>Согласие:</strong> ${app.agreement === 'yes' ? 'Да' : 'Нет'}</p>
+            <p><strong>Ответы на правила:</strong></p>
+            <ol style="margin-left:1.2rem;">
+              <li><strong>Читы (6.1):</strong> ${app.rule_6_1 || '—'}</li>
+              <li><strong>Гриферство (8.1):</strong> ${app.rule_8_1 || '—'}</li>
+              <li><strong>Оскорбления (2.1):</strong> ${app.rule_2_1 || '—'}</li>
+              <li><strong>Администраторам (3.2):</strong> ${app.rule_3_2 || '—'}</li>
+              <li><strong>Чужая территория (9.3):</strong> ${app.rule_9_3 || '—'}</li>
+              <li><strong>Спам/флуд (2.2-2.3):</strong> ${app.rule_2_2_2_3 || '—'}</li>
+              <li><strong>Обход бана (8.5):</strong> ${app.rule_8_5 || '—'}</li>
+            </ol>
+          </div>
+          ${app.status === 'pending' ? `
+            <div class="app-actions">
+              <button class="btn btn-accept" onclick="handleAction(${app.id}, 'accept')">✅ Принять</button>
+              <button class="btn btn-reject" onclick="handleAction(${app.id}, 'reject')">❌ Отклонить</button>
+            </div>
+          ` : ''}
+        </div>`;
+    });
+    container.innerHTML = html;
+  }
+
+  function toggleDetails(id) {
+    const panel = document.getElementById(`details-${id}`);
+    if (panel) panel.classList.toggle('open');
+  }
+
+  async function handleAction(id, action) {
+    if (!confirm(`Вы уверены, что хотите ${action === 'accept' ? 'принять' : 'отклонить'} заявку #${id}?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, password: PASSWORD })
+      });
+      if (res.ok) { loadApps(); }
+      else alert('Ошибка обработки');
+    } catch (e) { alert('Сетевая ошибка'); }
+  }
+
+  loadApps();
+</script>
+</body>
+</html>
+''', password=ADMIN_PASSWORD)
+
+# ---------- API ДЛЯ АДМИНКИ ----------
 @app.route("/api/applications")
 def api_applications():
-    """Возвращает все заявки в JSON. Доступ только с правильным паролем."""
     pwd = request.args.get("password", "")
-    if pwd != ADMIN_PASSWORD:
-        return jsonify({"error": "unauthorized"}), 401
-    apps = load_json(DATA_FILE, [])
-    return jsonify(apps)
+    if pwd != ADMIN_PASSWORD: return jsonify({"error": "unauthorized"}), 401
+    return jsonify(load_json(DATA_FILE, []))
 
 @app.route("/api/accept", methods=["POST"])
 def api_accept():
-    """Принять заявку через админ-панель."""
     data = request.get_json(force=True)
-    pwd = data.get("password", "")
-    if pwd != ADMIN_PASSWORD:
-        return jsonify({"error": "unauthorized"}), 401
+    if data.get("password") != ADMIN_PASSWORD: return jsonify({"error": "unauthorized"}), 401
     app_id = data.get("id")
     apps = load_json(DATA_FILE, [])
     app = next((a for a in apps if a["id"] == app_id), None)
-    if not app or app["status"] != "pending":
-        return jsonify({"error": "not found or already processed"}), 404
-    # Используем ту же логику, что в accept_ml_app, но вызываем функцию напрямую
+    if not app or app["status"] != "pending": return jsonify({"error": "not found"}), 404
     accept_ml_app_web(app, apps)
     return jsonify({"status": "ok"})
 
 @app.route("/api/reject", methods=["POST"])
 def api_reject():
-    """Отклонить заявку через админ-панель."""
     data = request.get_json(force=True)
-    pwd = data.get("password", "")
-    if pwd != ADMIN_PASSWORD:
-        return jsonify({"error": "unauthorized"}), 401
+    if data.get("password") != ADMIN_PASSWORD: return jsonify({"error": "unauthorized"}), 401
     app_id = data.get("id")
     apps = load_json(DATA_FILE, [])
     app = next((a for a in apps if a["id"] == app_id), None)
-    if not app or app["status"] != "pending":
-        return jsonify({"error": "not found or already processed"}), 404
+    if not app or app["status"] != "pending": return jsonify({"error": "not found"}), 404
     reject_ml_app_web(app, apps)
     return jsonify({"status": "ok"})
 
+# ---------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ВЕБ-ПАНЕЛИ ----------
 def accept_ml_app_web(app, apps):
-    """Логика принятия заявки (для веб-панели)."""
     app["status"] = "accepted"
     chat_id, user_nick = app["chat_id"], app.get("minecraft_nick", "игрок")
     pending_tags = load_json(PENDING_TAGS_FILE, [])
@@ -143,7 +321,6 @@ def accept_ml_app_web(app, apps):
     save_json(DATA_FILE, apps)
 
 def reject_ml_app_web(app, apps):
-    """Логика отклонения заявки (для веб-панели)."""
     app["status"] = "rejected"
     save_json(DATA_FILE, apps)
     try: bot.send_message(app["chat_id"], f"Привет {app['real_name']}. К сожалению, твоя заявка не прошла. Можешь подать повторно через 7 дней.")
